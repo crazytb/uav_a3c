@@ -12,8 +12,14 @@ from functools import partial
 # https://www.youtube.com/@cartoonsondemand
 
 class CustomEnv(gym.Env):
-    def __init__(self, max_comp_units, max_epoch_size, max_queue_size, reward_weights=1,
-                 agent_velocities=None, seed=None, reward_params=None):
+    def __init__(self,
+                 max_comp_units,
+                 max_epoch_size,
+                 max_queue_size,
+                 reward_weights=1,
+                 agent_velocities=None,
+                 seed=None
+                 ):
         super().__init__()
         self.max_comp_units = max_comp_units
         self.max_epoch_size = max_epoch_size
@@ -23,9 +29,11 @@ class CustomEnv(gym.Env):
         self.max_available_computation_units = max_comp_units
         self.max_channel_quality = 2
         self.max_remain_epochs = max_epoch_size
-        self.max_proc_times = int(np.ceil(max_epoch_size / 2))
+        self.max_proc_times = int(np.ceil(max_epoch_size/2))
 
+        # 0: process, 1: offload
         self.action_space = spaces.Discrete(2)
+
         self.reward = 0
 
         self.observation_space = spaces.Dict({
@@ -37,13 +45,10 @@ class CustomEnv(gym.Env):
             "queue_comp_units": spaces.Discrete(max_comp_units, start=1),
             "queue_proc_times": spaces.Discrete(max_epoch_size, start=1),
         })
-
-        import time
-        from numpy.random import default_rng
         if seed is None:
             seed = int(time.time() * 1000) % 2**32
         self.rng = default_rng(seed)
-        self.reward_params = reward_params or {}
+        self.current_obs = None
     
     def get_obs(self):
         return {"available_computation_units": self.available_computation_units,
@@ -119,16 +124,6 @@ class CustomEnv(gym.Env):
         """
         Returns: observation, reward, terminated, truncated, info
         """
-        ALPHA = self.reward_params.get('ALPHA', 0.1)
-        BETA = self.reward_params.get('BETA', 0.5)
-        GAMMA = self.reward_params.get('GAMMA', 2)
-        SCALE = self.reward_params.get('REWARD_SCALE', 10.0)
-        PENALTY = self.reward_params.get('FAILURE_PENALTY', 5.0)
-        comp_units = self.queue_comp_units
-        proc_time = self.queue_proc_times
-        latency = proc_time
-        success = False
-        energy = 0.0
         self.reward = 0
         # forwarding phase
         # 0: local process, 1: offload
@@ -140,30 +135,19 @@ class CustomEnv(gym.Env):
                 self.available_computation_units -= self.queue_comp_units
                 self.mec_comp_units = self.fill_first_zero(self.mec_comp_units, self.queue_comp_units)
                 self.mec_proc_times = self.fill_first_zero(self.mec_proc_times, self.queue_proc_times)
-                success = True
-                energy = ALPHA * comp_units
             else:
                 pass
         elif action == 1:   # Offload
             if self.queue_comp_units > 0:
-                # reward = self.queue_comp_units
+                reward = self.queue_comp_units
                 self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
                 self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
                 if self.channel_quality == 1:
-                    success = True
-                    energy = BETA * comp_units
-                    latency = GAMMA * proc_time
+                    self.reward = (self.reward_weight * reward)
                 elif self.channel_quality == 0:
-                    pass
+                    self.reward = 0
         else:
             raise ValueError("Invalid action")
-
-        if success:
-            efficiency = comp_units / (latency + 1e-8)  # Avoid division by zero
-            self.reward = SCALE * (efficiency - energy)
-        else:
-            self.reward = -PENALTY
-
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
         self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
             

@@ -22,10 +22,10 @@ MAX_QUEUE_SIZE = 20
 REWARD_WEIGHTS = 1
 
 # ===== A3C 구조 관련 파라미터 =====
-n_workers = 2                   # 병렬 에이전트(worker) 수
-MAX_EPOCH_SIZE = 100             # 한 에피소드에서 최대 스텝 수
+n_workers = 5                   # 병렬 에이전트(worker) 수
+MAX_EPOCH_SIZE = 10             # 한 에피소드에서 최대 스텝 수
 update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 10000    # worker 당 총 에피소드 수
+target_episode_count = 1000    # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
@@ -37,6 +37,15 @@ ENV_PARAMS = {
     # 'agent_velocities': np.random.randint(10, 101)  # Agent velocities
     'agent_velocities': 50  # Agent velocities
     }
+
+# Reward 관련 파라미터
+REWARD_PARAMS = {
+    'ALPHA': 0.1,             # 로컬 처리 에너지 비용 계수
+    'BETA': 0.5,              # 오프로드 에너지 비용 계수
+    'GAMMA': 2,               # 전송 지연 계수
+    'REWARD_SCALE': 10.0,     # 보상 배율
+    'FAILURE_PENALTY': 5.0    # 실패 시 패널티
+}
 
 # ===== 학습 관련 파라미터 =====
 gamma = 0.99                   # discount factor

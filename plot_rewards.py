@@ -1,38 +1,50 @@
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import csv
-from drl_framework.params import n_workers, log_dir, target_episode_count
-from drl_framework.trainer import train
-import pandas as pd
+import drl_framework.params as params
 
+# 설정
+log_dir = params.log_dir
+n_workers = params.n_workers
+target_episode_count = params.target_episode_count
+window_size = 100  # rolling 평균 윈도우 크기
 
+# reward와 loss를 담을 DataFrame
 reward_logs = pd.DataFrame(index=np.arange(1, target_episode_count + 1))
 
+# CSV 파일에서 각 워커의 reward 및 loss 읽기
 for i in range(n_workers):
     path = os.path.join(log_dir, f"worker_{i}_rewards.csv")
-    rewards = []
-    with open(path, "r") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if len(row) == 2:
-                try:
-                    rewards.append(float(row[1]))
-                except ValueError:
-                    rewards.append(np.nan)
-    # 워커 열 추가
-    reward_logs[f"Worker {i}"] = pd.Series(rewards, index=np.arange(1, len(rewards) + 1))
+    df = pd.read_csv(path)
+    df = df.set_index("episode")
+    reward_logs[f"Reward {i}"] = df["reward"]
+    reward_logs[f"Loss {i}"] = df["loss"]
 
-# Plot
+# Plot: Reward
 plt.figure(figsize=(12, 6))
-for worker in reward_logs.columns:
-    avg = reward_logs[worker].rolling(window=100).mean()
-    plt.plot(avg, label=worker)
+for i in range(n_workers):
+    avg_reward = reward_logs[f"Reward {i}"].rolling(window=window_size).mean()
+    plt.plot(avg_reward, label=f"Worker {i} Reward")
 
-plt.title("Average Episode Reward per Worker")
+plt.title(f"Average Episode Reward per Worker (rolling {window_size})")
 plt.xlabel("Episode")
 plt.ylabel("Average Reward")
 plt.legend()
 plt.grid(True)
 plt.tight_layout()
-plt.show()
+plt.savefig("logs/average_episode_reward.png")
+
+# Plot: Loss
+plt.figure(figsize=(12, 6))
+for i in range(n_workers):
+    avg_loss = reward_logs[f"Loss {i}"].rolling(window=window_size).mean()
+    plt.plot(avg_loss, label=f"Worker {i} Loss")
+
+plt.title(f"Average Episode Loss per Worker (rolling {window_size})")
+plt.xlabel("Episode")
+plt.ylabel("Average Loss")
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.savefig("logs/average_episode_loss.png")
