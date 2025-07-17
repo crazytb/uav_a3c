@@ -4,13 +4,13 @@ import torch
 import numpy as np
 
 # Device configuration
-# if torch.cuda.is_available():
-#     device = torch.device("cuda")
-# elif torch.backends.mps.is_available():
-#     device = torch.device("mps")
-# else:
-#     device = torch.device("cpu")
-device = torch.device("cpu")  # Force CPU for compatibility
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
+# device = torch.device("cpu")  # Force CPU for compatibility
 
 # Logging directory
 log_dir = "logs"
@@ -26,7 +26,7 @@ AGENT_VELOCITIES = 50  # Default velocity, can be overridden in ENV_PARAMS
 n_workers = 5                   # 병렬 에이전트(worker) 수
 MAX_EPOCH_SIZE = 10             # 한 에피소드에서 최대 스텝 수
 update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 10000    # worker 당 총 에피소드 수
+target_episode_count = 2000    # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {

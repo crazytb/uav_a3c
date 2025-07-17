@@ -1,12 +1,11 @@
 import torch
-import torch.nn as nn
 import torch.multiprocessing as mp
+import os
+import csv
 from .networks import ActorCritic
 from .params import *
 from .custom_env import make_env
 from .utils import flatten_dict_values
-import os
-import csv
 
 # def make_env(**kwargs):
 #     return partial(CustomEnv, **kwargs)
@@ -109,42 +108,214 @@ def worker(rank, global_model, optimizer, env_fn):
         with open(log_path, mode="a", newline="") as f:
             csv.writer(f).writerow([episode_count, total_reward, total_loss.item()])
 
-def train():
+
+def universal_worker(rank, model, optimizer, env_fn, log_path, use_global_model=True, total_episodes=1000):
+    torch.manual_seed(123 + rank)
+    env = env_fn()
+    local_model = ActorCritic(state_dim, action_dim, hidden_dim).to(device)
+
+    if use_global_model:
+        local_model.load_state_dict(model.state_dict())
+
+    for episode in range(1, total_episodes + 1):
+        state, _ = env.reset()
+        done = False
+        total_reward = 0.0
+        total_loss = 0.0
+        episode_steps = 0
+
+        while not done and episode_steps < MAX_EPOCH_SIZE:
+            state_tensor = torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device)
+            logits, value = local_model(state_tensor)
+            probs = torch.softmax(logits, dim=-1)
+            log_prob = torch.log(probs + 1e-8)
+
+            action = probs.multinomial(num_samples=1).detach()
+            selected_log_prob = log_prob.gather(1, action)
+
+            next_state, reward, done, _, _ = env.step(action.item())
+
+            next_state_tensor = torch.FloatTensor(flatten_dict_values(next_state)).unsqueeze(0).to(device)
+            _, next_value = local_model(next_state_tensor)
+
+            advantage = reward + (0 if done else gamma * next_value.item()) - value.item()
+            entropy = -(log_prob * probs).sum(1, keepdim=True)
+            policy_loss = -selected_log_prob * advantage - entropy_coef * entropy
+            value_loss = advantage ** 2
+            loss = policy_loss + value_loss
+
+            optimizer.zero_grad()
+            loss.backward()
+
+            if use_global_model:
+                torch.nn.utils.clip_grad_norm_(local_model.parameters(), max_grad_norm)
+                for lp, gp in zip(local_model.parameters(), model.parameters()):
+                    gp._grad = lp.grad
+                optimizer.step()
+                local_model.load_state_dict(model.state_dict())
+            else:
+                optimizer.step()
+
+            total_reward += reward
+            total_loss += loss.item()
+            episode_steps += 1
+            state = next_state
+
+        with open(log_path, mode="a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([episode, total_reward, total_loss])
+
+        if episode % 100 == 0:
+            print(f"[Worker {rank}] Episode {episode}, Reward: {total_reward:.2f}, Loss: {total_loss:.2f}")
+
+
+# def train(n_workers=5, env_param_list=None):
+#     mp.set_start_method("spawn", force=True)
+
+#     global_model = ActorCritic(state_dim, action_dim, hidden_dim)
+#     global_model.share_memory()
+#     global_model = global_model.to(device)
+#     optimizer = SharedAdam(global_model.parameters(), lr=lr)
+
+#     os.makedirs("models", exist_ok=True)
+#     os.makedirs("logs", exist_ok=True)
+
+#     for rank in range(n_workers):
+#         log_path = os.path.join("logs", f"worker_{rank}_rewards.csv")
+#         with open(log_path, mode="w", newline="") as f:
+#             writer = csv.writer(f)
+#             writer.writerow(["episode", "reward", "loss"])
+
+#     processes = []
+#     for rank in range(n_workers):
+#         env_params = env_param_list[rank] if env_param_list else ENV_PARAMS
+#         env_fn = make_env(**env_params, reward_params=REWARD_PARAMS)
+#         p = mp.Process(target=worker, args=(rank, global_model, optimizer, env_fn))
+#         p.start()
+#         processes.append(p)
+
+#     for p in processes:
+#         p.join()
+
+#     torch.save(global_model.state_dict(), "models/global_final.pth")
+#     print("Training complete. Final model saved.")
+
+def train(n_workers, total_episodes, env_param_list=None):
     mp.set_start_method("spawn", force=True)
 
-    # 1. 글로벌 모델 생성 및 공유 메모리로 이동
     global_model = ActorCritic(state_dim, action_dim, hidden_dim)
     global_model.share_memory()
     global_model = global_model.to(device)
-
-    # 2. 공유 옵티마이저 생성
     optimizer = SharedAdam(global_model.parameters(), lr=lr)
 
-    # 3. 로그 저장 폴더 생성
     os.makedirs("models", exist_ok=True)
     os.makedirs("logs", exist_ok=True)
 
-    # 4. 로그 파일 초기화 (에피소드, reward, loss)
     for rank in range(n_workers):
         log_path = os.path.join("logs", f"worker_{rank}_rewards.csv")
         with open(log_path, mode="w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["episode", "reward", "loss"])
 
-    # 5. 워커 시작
     processes = []
     for rank in range(n_workers):
-        env_params = ENV_PARAMS.copy()
-        # env_params["max_comp_units"] = np.random.randint(90, 111)
-        env_params["agent_velocities"] = np.random.randint(30, 101)
+        env_params = env_param_list[rank] if env_param_list else ENV_PARAMS
         env_fn = make_env(**env_params, reward_params=REWARD_PARAMS)
-        p = mp.Process(target=worker, args=(rank, global_model, optimizer, env_fn))
+        log_path = os.path.join("logs", f"worker_{rank}_rewards.csv")
+        p = mp.Process(target=universal_worker, args=(rank, global_model, optimizer, env_fn, log_path, True, total_episodes))
         p.start()
         processes.append(p)
 
     for p in processes:
         p.join()
 
-    # 6. 학습 종료 후 최종 모델 저장
     torch.save(global_model.state_dict(), "models/global_final.pth")
     print("Training complete. Final model saved.")
+
+# def train_individual(n_workers=n_workers, 
+#                      total_episodes=target_episode_count, 
+#                      env_param_list=None):
+#     os.makedirs("models_individual", exist_ok=True)
+#     os.makedirs("logs_individual", exist_ok=True)
+
+#     for rank in range(n_workers):
+#         env_params = env_param_list[rank] if env_param_list else ENV_PARAMS
+#         env_fn = make_env(**env_params, reward_params=REWARD_PARAMS)
+#         env = env_fn()
+
+#         model = ActorCritic(state_dim, action_dim, hidden_dim).to(device)
+#         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+#         log_path = os.path.join("logs_individual", f"worker_{rank}_rewards.csv")
+#         with open(log_path, mode="w", newline="") as f:
+#             writer = csv.writer(f)
+#             writer.writerow(["episode", "reward", "loss"])
+
+#         for episode in range(1, total_episodes + 1):
+#             state, _ = env.reset()
+#             done = False
+#             total_reward = 0.0
+#             total_loss = 0.0
+#             episode_steps = 0
+
+#             while not done and episode_steps < MAX_EPOCH_SIZE:
+#                 state_tensor = torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device)
+#                 logits, value = model(state_tensor)
+#                 probs = torch.softmax(logits, dim=-1)
+#                 log_prob = torch.log(probs + 1e-8)
+
+#                 action = probs.multinomial(num_samples=1).detach()
+#                 selected_log_prob = log_prob.gather(1, action)
+
+#                 next_state, reward, done, _, _ = env.step(action.item())
+
+#                 next_state_tensor = torch.FloatTensor(flatten_dict_values(next_state)).unsqueeze(0).to(device)
+#                 _, next_value = model(next_state_tensor)
+
+#                 advantage = reward + (0 if done else gamma * next_value.item()) - value.item()
+
+#                 entropy = -(log_prob * probs).sum(1, keepdim=True)
+#                 policy_loss = -selected_log_prob * advantage - entropy_coef * entropy
+#                 value_loss = advantage ** 2
+#                 loss = policy_loss + value_loss
+
+#                 optimizer.zero_grad()
+#                 loss.backward()
+#                 optimizer.step()
+
+#                 total_reward += reward
+#                 total_loss += loss.item()
+#                 episode_steps += 1
+#                 state = next_state
+
+#             with open(log_path, mode="a", newline="") as f:
+#                 writer = csv.writer(f)
+#                 writer.writerow([episode, total_reward, total_loss])
+
+#             if episode % 100 == 0:
+#                 print(f"[Worker {rank}] Episode {episode} | Reward: {total_reward:.2f} | Loss: {total_loss:.2f}")
+
+#         torch.save(model.state_dict(), f"models_individual/worker_{rank}_final.pth")
+#         print(f"[Worker {rank}] Training complete. Model saved.")
+
+def train_individual(n_workers, total_episodes, env_param_list=None):
+    os.makedirs("models_individual", exist_ok=True)
+    os.makedirs("logs_individual", exist_ok=True)
+
+    for rank in range(n_workers):
+        env_params = env_param_list[rank] if env_param_list else ENV_PARAMS
+        env_fn = make_env(**env_params, reward_params=REWARD_PARAMS)
+
+        model = ActorCritic(state_dim, action_dim, hidden_dim).to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+        log_path = os.path.join("logs_individual", f"worker_{rank}_rewards.csv")
+        with open(log_path, mode="w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["episode", "reward", "loss"])
+
+        print(f"[Worker {rank}] Starting individual training")
+        universal_worker(rank, model, optimizer, env_fn, log_path, use_global_model=False, total_episodes=total_episodes)
+
+        torch.save(model.state_dict(), f"models_individual/worker_{rank}_final.pth")
+        print(f"[Worker {rank}] Training complete. Model saved.")
