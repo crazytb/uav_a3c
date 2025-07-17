@@ -8,7 +8,7 @@ import drl_framework.params as params
 log_dir = params.log_dir
 n_workers = params.n_workers
 target_episode_count = params.target_episode_count
-window_size = 100  # rolling 평균 윈도우 크기
+window_size = params.target_episode_count // 10  # rolling 평균 윈도우 크기
 
 # reward와 loss를 담을 DataFrame
 reward_logs = pd.DataFrame(index=np.arange(1, target_episode_count + 1))

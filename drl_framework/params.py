@@ -16,26 +16,26 @@ device = torch.device("cpu")  # Force CPU for compatibility
 log_dir = "logs"
 
 # Env parameters
-# MAX_COMP_UNITS = 100
+MAX_COMP_UNITS = 100
 # MAX_TERMINALS = 10
 MAX_QUEUE_SIZE = 20
 REWARD_WEIGHTS = 1
+AGENT_VELOCITIES = 50  # Default velocity, can be overridden in ENV_PARAMS
 
 # ===== A3C 구조 관련 파라미터 =====
 n_workers = 5                   # 병렬 에이전트(worker) 수
 MAX_EPOCH_SIZE = 10             # 한 에피소드에서 최대 스텝 수
 update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 1000    # worker 당 총 에피소드 수
+target_episode_count = 10000    # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
     # 'max_comp_units': np.random.randint(1, 101),  # Max computation units
-    'max_comp_units': 100,  # Max computation units
+    'max_comp_units': MAX_COMP_UNITS,  # Max computation units
     'max_epoch_size': MAX_EPOCH_SIZE,  # Max epoch size
     'max_queue_size': MAX_QUEUE_SIZE,  # Max queue size
     'reward_weights': REWARD_WEIGHTS,  # Reward weights
-    # 'agent_velocities': np.random.randint(10, 101)  # Agent velocities
-    'agent_velocities': 50  # Agent velocities
+    'agent_velocities': AGENT_VELOCITIES  # Agent velocities
     }
 
 # Reward 관련 파라미터

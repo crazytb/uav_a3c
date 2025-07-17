@@ -79,8 +79,7 @@ def worker(rank, global_model, optimizer, env_fn):
 
         # 에피소드 종료 후 업데이트
         R = torch.zeros(1, 1).to(device) if done else local_model(
-            torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device)
-        )[1].detach()
+            torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device))[1].detach()
         values.append(R)
 
         policy_loss, value_loss = 0, 0
@@ -135,7 +134,10 @@ def train():
     # 5. 워커 시작
     processes = []
     for rank in range(n_workers):
-        env_fn = make_env(**ENV_PARAMS, reward_params=REWARD_PARAMS)
+        env_params = ENV_PARAMS.copy()
+        # env_params["max_comp_units"] = np.random.randint(90, 111)
+        env_params["agent_velocities"] = np.random.randint(30, 101)
+        env_fn = make_env(**env_params, reward_params=REWARD_PARAMS)
         p = mp.Process(target=worker, args=(rank, global_model, optimizer, env_fn))
         p.start()
         processes.append(p)
