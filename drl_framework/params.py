@@ -4,46 +4,38 @@ import torch
 import numpy as np
 
 # Device configuration
-if torch.cuda.is_available():
-    device = torch.device("cuda")
-elif torch.backends.mps.is_available():
-    device = torch.device("mps")
-else:
-    device = torch.device("cpu")
-# device = torch.device("cpu")  # Force CPU for compatibility
+# if torch.cuda.is_available():
+#     device = torch.device("cuda")
+# elif torch.backends.mps.is_available():
+#     device = torch.device("mps")
+# else:
+#     device = torch.device("cpu")
+device = torch.device("cpu")  # Force CPU for compatibility
 
 # Logging directory
 log_dir = "logs"
 
-# Env parameters
-MAX_COMP_UNITS = 100
-# MAX_TERMINALS = 10
-MAX_QUEUE_SIZE = 20
-REWARD_WEIGHTS = 1
-AGENT_VELOCITIES = 50  # Default velocity, can be overridden in ENV_PARAMS
-
 # ===== A3C 구조 관련 파라미터 =====
-n_workers = 5                   # 병렬 에이전트(worker) 수
-MAX_EPOCH_SIZE = 10             # 한 에피소드에서 최대 스텝 수
-update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 2000    # worker 당 총 에피소드 수
+n_workers = 10                   # 병렬 에이전트(worker) 수
+# update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
+target_episode_count = 10000    # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
     # 'max_comp_units': np.random.randint(1, 101),  # Max computation units
-    'max_comp_units': MAX_COMP_UNITS,  # Max computation units
-    'max_epoch_size': MAX_EPOCH_SIZE,  # Max epoch size
-    'max_queue_size': MAX_QUEUE_SIZE,  # Max queue size
-    'reward_weights': REWARD_WEIGHTS,  # Reward weights
-    'agent_velocities': AGENT_VELOCITIES  # Agent velocities
-    }
+    'max_comp_units': 100,  # Max computation units
+    'max_epoch_size': 10,  # Max epoch size
+    'max_queue_size': 20,  # Max queue size
+    'reward_weights': 1,  # Reward weights
+    'agent_velocities': 50  # Agent velocities
+}
 
 # Reward 관련 파라미터
 REWARD_PARAMS = {
     'ALPHA': 0.1,             # 로컬 처리 에너지 비용 계수
     'BETA': 0.5,              # 오프로드 에너지 비용 계수
     'GAMMA': 2,               # 전송 지연 계수
-    'REWARD_SCALE': 10.0,     # 보상 배율
+    'REWARD_SCALE': 1.0,     # 보상 배율
     'FAILURE_PENALTY': 5.0    # 실패 시 패널티
 }
 
@@ -51,7 +43,7 @@ REWARD_PARAMS = {
 gamma = 0.99                   # discount factor
 entropy_coef = 0.01            # policy entropy 가중치 (exploration 유도)
 value_loss_coef = 0.5          # value loss에 대한 가중치
-lr = 1e-4                      # learning rate
+lr = 5e-5                      # learning rate
 max_grad_norm = 0.5            # gradient clipping 임계값
 hidden_dim = 128               # hidden layer 노드 수
 

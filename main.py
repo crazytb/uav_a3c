@@ -1,10 +1,11 @@
 from drl_framework.trainer import train, train_individual
-from drl_framework.params import ENV_PARAMS
+import drl_framework.params as params
 import copy
 import numpy as np
 
-n_workers = 5
-target_episode_count = 5000  # trainer.py에서도 동일하게 사용됨
+n_workers = params.n_workers
+target_episode_count = params.target_episode_count  # trainer.py에서도 동일하게 사용됨
+ENV_PARAMS = params.ENV_PARAMS
 
 # 난수 기반 환경 리스트 생성
 env_param_list = []

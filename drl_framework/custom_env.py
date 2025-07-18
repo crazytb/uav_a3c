@@ -69,7 +69,7 @@ class CustomEnv(gym.Env):
         f_0 = 5.9e9 # Carrier freq = 5.9GHz, IEEE 802.11bd
         speedoflight = 300000   # km/sec
         f_d = velocity/(3600*speedoflight)*f_0  # Hz
-        packettime = 100*1000/MAX_EPOCH_SIZE
+        packettime = 100*1000/ENV_PARAMS['max_epoch_size']
         # packettime = 5000    # us
         fdtp = f_d*packettime/1e6
         TRAN_01 = (fdtp*math.sqrt(2*math.pi*snr_thr/snr_ave))/(np.exp(snr_thr/snr_ave)-1)
@@ -122,11 +122,10 @@ class CustomEnv(gym.Env):
         ALPHA = self.reward_params.get('ALPHA', 0.1)
         BETA = self.reward_params.get('BETA', 0.5)
         GAMMA = self.reward_params.get('GAMMA', 2)
-        SCALE = self.reward_params.get('REWARD_SCALE', 10.0)
+        SCALE = self.reward_params.get('REWARD_SCALE', 1.0)
         PENALTY = self.reward_params.get('FAILURE_PENALTY', 5.0)
         comp_units = self.queue_comp_units
         proc_time = self.queue_proc_times
-        latency = proc_time
         success = False
         energy = 0.0
         self.reward = 0
@@ -142,19 +141,21 @@ class CustomEnv(gym.Env):
                 self.mec_proc_times = self.fill_first_zero(self.mec_proc_times, self.queue_proc_times)
                 success = True
                 energy = ALPHA * comp_units
+                latency = proc_time
             else:
-                pass
+                success = False
+                energy = 0.0
+                latency = proc_time
         elif action == 1:   # Offload
             if self.queue_comp_units > 0:
-                # reward = self.queue_comp_units
-                self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
-                self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
                 if self.channel_quality == 1:
                     success = True
                     energy = BETA * comp_units
                     latency = GAMMA * proc_time
                 elif self.channel_quality == 0:
-                    pass
+                    success = False
+                    energy = BETA * comp_units
+                    latency = GAMMA * proc_time
         else:
             raise ValueError("Invalid action")
 
@@ -162,7 +163,8 @@ class CustomEnv(gym.Env):
             efficiency = comp_units / (latency + 1e-8)  # Avoid division by zero
             self.reward = SCALE * (efficiency - energy)
         else:
-            self.reward = -PENALTY
+            efficiency = 0
+            self.reward = SCALE * (efficiency - energy) - PENALTY
 
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
         self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
@@ -174,9 +176,9 @@ class CustomEnv(gym.Env):
         zeroed_index = (self.mec_proc_times == 1)
         if zeroed_index.any():
             self.available_computation_units += self.mec_comp_units[zeroed_index].sum()
-            self.reward = self.mec_comp_units[zeroed_index].sum()
             self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_index == False], np.zeros(zeroed_index.sum(), dtype=int)])
             self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_index == False], np.zeros(zeroed_index.sum(), dtype=int)])
+            self.reward += self.mec_comp_units[zeroed_index].sum()
         self.mec_proc_times = np.clip(self.mec_proc_times - 1, 0, self.max_proc_times)
 
         next_obs = self.get_obs()
