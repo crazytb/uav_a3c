@@ -19,11 +19,12 @@ state_dim = len(flatten_dict_values(sample_obs))
 action_dim = temp_env.action_space.n
 hidden_dim = params.hidden_dim
 
-e = copy.deepcopy(ENV_PARAMS)
-# e["max_comp_units"] = 100
-# e["agent_velocities"] = 100
-# e["max_comp_units"] = np.random.randint(80, 121)
-# e["agent_velocities"] = np.random.randint(30, 101)
+env_param_list = []
+for i in range(n_eval_workers:=5):
+    e = copy.deepcopy(ENV_PARAMS)
+    e["max_comp_units"] = np.random.randint(80, 121)
+    e["agent_velocities"] = np.random.randint(30, 101)
+    env_param_list.append(e)
 
 
 def evaluate_model(model_path, e, n_episodes=100, render=False):
