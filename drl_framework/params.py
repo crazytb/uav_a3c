@@ -42,7 +42,7 @@ REWARD_PARAMS = {
 # ===== 학습 관련 파라미터 =====
 gamma = 0.99                   # discount factor
 entropy_coef = 0.01            # policy entropy 가중치 (exploration 유도)
-value_loss_coef = 0.5          # value loss에 대한 가중치
+value_loss_coef = 0.001          # value loss에 대한 가중치
 lr = 5e-5                      # learning rate
 max_grad_norm = 0.5            # gradient clipping 임계값
 hidden_dim = 128               # hidden layer 노드 수
