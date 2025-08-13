@@ -20,5 +20,5 @@ if __name__ == "__main__":
           total_episodes=target_episode_count, 
           env_param_list=env_param_list)
     train_individual(n_workers=n_workers, 
-                     total_episodes=target_episode_count, 
+                     total_episodes=target_episode_count*n_workers, 
                      env_param_list=env_param_list)

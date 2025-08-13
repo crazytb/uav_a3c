@@ -34,7 +34,8 @@ class EpisodeLog:
     entropy: Optional[float] = None
     total_loss: Optional[float] = None
 
-MASTER_CSV = os.path.join("runs", "all_training_metrics.csv")
+stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+MASTER_CSV = os.path.join("runs", f"all_training_metrics_{stamp}.csv")
 
 def _ensure_master_csv_header():
     os.makedirs("runs", exist_ok=True)
@@ -43,14 +44,34 @@ def _ensure_master_csv_header():
             writer = csv.writer(f)
             writer.writerow(["run_id","label","episode","reward","policy_loss","value_loss","entropy","total_loss"])
 
+# def _write_summary_csv(df: pd.DataFrame, label: str, out_csv_path: str, run_id: str):
+#     """
+#     df: columns = step, worker_id, episode, reward, length, policy_loss, value_loss, entropy, total_loss
+#     label: "Global" 또는 "Individual_{n}"
+#     out_csv_path: 이번 실행(run) 전용 요약 CSV 저장 경로
+#     run_id: 예) a3c_20250813_153012
+#     """
+#     # 에피소드 단위 평균으로 요약
+#     epi = df.groupby("episode").agg(
+#         reward=("reward","mean"),
+#         policy_loss=("policy_loss","mean"),
+#         value_loss=("value_loss","mean"),
+#         entropy=("entropy","mean"),
+#         total_loss=("total_loss","mean"),
+#     ).reset_index()
+
+#     epi.insert(0, "label", label)
+#     epi.to_csv(out_csv_path, index=False)
+
+#     # 마스터 CSV에도 append
+#     _ensure_master_csv_header()
+#     epi_master = epi.copy()
+#     epi_master.insert(0, "run_id", run_id)
+#     epi_master[["run_id","label","episode","reward","policy_loss","value_loss","entropy","total_loss"]].to_csv(
+#         MASTER_CSV, mode='a', header=False, index=False
+#     )
+    
 def _write_summary_csv(df: pd.DataFrame, label: str, out_csv_path: str, run_id: str):
-    """
-    df: columns = step, worker_id, episode, reward, length, policy_loss, value_loss, entropy, total_loss
-    label: "Global" 또는 "Individual_{n}"
-    out_csv_path: 이번 실행(run) 전용 요약 CSV 저장 경로
-    run_id: 예) a3c_20250813_153012
-    """
-    # 에피소드 단위 평균으로 요약
     epi = df.groupby("episode").agg(
         reward=("reward","mean"),
         policy_loss=("policy_loss","mean"),
@@ -62,13 +83,16 @@ def _write_summary_csv(df: pd.DataFrame, label: str, out_csv_path: str, run_id: 
     epi.insert(0, "label", label)
     epi.to_csv(out_csv_path, index=False)
 
-    # 마스터 CSV에도 append
-    _ensure_master_csv_header()
     epi_master = epi.copy()
     epi_master.insert(0, "run_id", run_id)
-    epi_master[["run_id","label","episode","reward","policy_loss","value_loss","entropy","total_loss"]].to_csv(
-        MASTER_CSV, mode="a", header=False, index=False
+
+    # ✨ 여기가 핵심
+    write_header = not os.path.exists(MASTER_CSV) or os.stat(MASTER_CSV).st_size == 0
+
+    epi_master.to_csv(
+        MASTER_CSV, mode="a", header=write_header, index=False
     )
+
 
 class TrainingLogger:
     def __init__(self, log_dir: str):
@@ -282,7 +306,7 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
         local_model.load_state_dict(model.state_dict())
         working_model = local_model
     else:
-        working_model = model
+        working_model = model.to(device)
 
     global_step = 0  # (옵션) 전역 스텝 카운트
 
@@ -367,7 +391,7 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
 
         # ★ mean 기반 손실 (스케일 안정)
         policy_loss   = -(log_probs_t * advantages.detach()).mean()
-        value_loss    = F.mse_loss(values_t, returns)         # == ((returns-values_t)**2).mean()
+        value_loss    = F.mse_loss(values_t, returns.unsqueeze(-1))         # == ((returns-values_t)**2).mean()
         entropy_bonus =  entropies_t.mean()
 
         # ★ 엔트로피는 보너스(탐색 증가) → 마이너스 부호로 더함
@@ -377,6 +401,10 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
         # Update
         optimizer.zero_grad()
         total_loss.backward()
+        for name, p in working_model.named_parameters():
+            if p.grad is None:
+                print(f"[Worker {worker_id}] ⚠️ Gradient missing: {name}")
+
         if use_global_model:
             torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
             for lp, gp in zip(working_model.parameters(), model.parameters()):
@@ -573,7 +601,7 @@ def train(n_workers, total_episodes, env_param_list=None):
     mp.set_start_method("spawn", force=True)
 
     # 타임스탬프 기반 로그/모델 폴더
-    stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = os.path.join("runs", f"a3c_{stamp}")
     logs_dir = run_dir
     models_dir = os.path.join(run_dir, "models")
@@ -660,7 +688,7 @@ def train(n_workers, total_episodes, env_param_list=None):
 # ==========================
 def train_individual(n_workers, total_episodes, env_param_list=None):
     # 타임스탬프 기반 로그/모델 폴더
-    stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # stamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = os.path.join("runs", f"individual_{stamp}")
     logs_dir = run_dir
     models_dir = os.path.join(run_dir, "models")

@@ -183,7 +183,7 @@ class CustomEnv(gym.Env):
 
         next_obs = self.get_obs()
 
-        return next_obs, self.reward, self.remain_epochs == 0, False, {}
+        return next_obs, self.reward/100, self.remain_epochs == 0, False, {}
 
 
     def render(self):
