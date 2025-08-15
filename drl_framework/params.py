@@ -18,13 +18,13 @@ log_dir = "logs"
 # ===== A3C 구조 관련 파라미터 =====
 n_workers = 5                   # 병렬 에이전트(worker) 수
 # update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 1000    # worker 당 총 에피소드 수
+target_episode_count = 500    # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
     # 'max_comp_units': np.random.randint(1, 101),  # Max computation units
-    'max_comp_units': 100,  # Max computation units
-    'max_epoch_size': 10,  # Max epoch size
+    'max_comp_units': 50,  # Max computation units
+    'max_epoch_size': 100,  # Max epoch size
     'max_queue_size': 20,  # Max queue size
     'reward_weights': 1,  # Reward weights
     'agent_velocities': 50  # Agent velocities
@@ -32,11 +32,11 @@ ENV_PARAMS = {
 
 # Reward 관련 파라미터
 REWARD_PARAMS = {
-    'ALPHA': 0.1,             # 로컬 처리 에너지 비용 계수
+    'ALPHA': 1,             # 로컬 처리 에너지 비용 계수
     'BETA': 0.5,              # 오프로드 에너지 비용 계수
-    'GAMMA': 2,               # 전송 지연 계수
+    'GAMMA': 2.0,               # 전송 지연 계수
     'REWARD_SCALE': 1.0,     # 보상 배율
-    'FAILURE_PENALTY': 5.0    # 실패 시 패널티
+    'FAILURE_PENALTY': 0.0    # 실패 시 패널티
 }
 
 # ===== 학습 관련 파라미터 =====

@@ -491,7 +491,7 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
         while not done and episode_steps < ENV_PARAMS['max_epoch_size']:
             # --------- (C) T-step 롤아웃 수집 ----------
             obs_seq, act_seq, rew_seq, done_seq = [], [], [], []
-            hx_roll_start = hx  # 이 시점의 hidden을 저장(rollout 역전파용)
+            hx_roll_start = hx.detach()  # 이 시점의 hidden을 저장(rollout 역전파용)
 
             t = 0
             last_probs_np = None  # 디버그 출력용
@@ -502,11 +502,12 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
                 ).unsqueeze(0)  # (1, state_dim)
 
                 # --- (C-1) 1-step RNN 전파 및 행동 샘플 ---
-                logits, value, hx = working_model.step(obs_tensor, hx)
-                dist = Categorical(logits=logits)
-                action = dist.sample()                      # (1,)
-                logp  = dist.log_prob(action)               # (1,)  # 저장은 이후 rollout 재계산에서 함
-                probs = torch.softmax(logits, dim=-1)       # (1, A)
+                with torch.no_grad():
+                    logits, value, hx = working_model.step(obs_tensor, hx)
+                    dist = Categorical(logits=logits)
+                    action = dist.sample()                      # (1,)
+                    logp  = dist.log_prob(action)               # (1,)  # 저장은 이후 rollout 재계산에서 함
+                    probs = torch.softmax(logits, dim=-1)       # (1, A)
                 last_probs_np = probs.detach().cpu().numpy()
 
                 # 환경 한 스텝
@@ -605,28 +606,27 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
                 working_model.load_state_dict(model.state_dict())
             else:
                 torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
-                optimizer.step()
-
-            # 로깅(에피소드 누적 기준)
-            if metrics_queue is not None:
-                metrics_queue.put({
-                    "step": global_step,
-                    "worker_id": worker_id,
-                    "episode": episode,
-                    "reward": float(total_reward),
-                    "length": int(episode_steps),
-                    "policy_loss": float(policy_loss.detach().item()),
-                    "value_loss": float(value_loss.detach().item()),
-                    "entropy": float(entropy_bonus.detach().item()),
-                    "total_loss": float(total_loss.detach().item()),
-                })
-
-            # 디버그: 최근 확률
-            if episode % 100 == 0 and last_probs_np is not None:
-                print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, "
-                      f"Loss: {float(total_loss.detach().item()):.4f}")
-                print("  Example action probs:", last_probs_np.round(3))                
+                optimizer.step()            
         # while 끝
+        # 로깅(에피소드 누적 기준)
+        if metrics_queue is not None:
+            metrics_queue.put({
+                "step": global_step,
+                "worker_id": worker_id,
+                "episode": episode,
+                "reward": float(total_reward),
+                "length": int(episode_steps),
+                "policy_loss": float(policy_loss.detach().item()),
+                "value_loss": float(value_loss.detach().item()),
+                "entropy": float(entropy_bonus.detach().item()),
+                "total_loss": float(total_loss.detach().item()),
+            })
+
+        # 디버그: 최근 확률
+        if episode % 100 == 0 and last_probs_np is not None:
+            print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, "
+                    f"Loss: {float(total_loss.detach().item()):.4f}")
+            print("  Example action probs:", last_probs_np.round(3))    
 
         # per-worker csv (기존 유지)
         with open(log_path, mode="a", newline="") as f:

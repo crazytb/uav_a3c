@@ -12,10 +12,15 @@ from drl_framework.utils import flatten_dict_values
 import drl_framework.params as params
 import copy
 
+
+# 타임스탬프
+stamp = "20250815_161957"  # 예시 타임스탬프, 필요에 따라 변경
+
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
 REWARD_PARAMS = params.REWARD_PARAMS
 hidden_dim = params.hidden_dim
+n_workers = params.n_workers
 
 # 임시 env로 상태/행동 차원 파악
 temp_env_fn = make_env(**ENV_PARAMS)
@@ -27,12 +32,11 @@ temp_env.close()
 
 # 평가용 환경 파라미터 리스트 (원본 로직 유지)
 env_param_list = []
-for _ in range(n_eval_workers := 5):
+for _ in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
     e["max_comp_units"] = np.random.randint(80, 121)
     e["agent_velocities"] = np.random.randint(30, 101)
     env_param_list.append(e)
-
 
 @torch.no_grad()
 def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, render=False):
@@ -129,7 +133,7 @@ def compare_all_models(env_param_list, n_episodes=100, greedy=True):
     results = {}
 
     # A3C 글로벌 모델
-    gpath = "models/global_final.pth"
+    gpath = f"runs/a3c_{stamp}/models/global_final.pth"
     if os.path.exists(gpath):
         print("Evaluating A3C Global Model...")
         results["A3C_Global"] = evaluate_over_envs(gpath, env_param_list, n_episodes, greedy)
@@ -137,7 +141,7 @@ def compare_all_models(env_param_list, n_episodes=100, greedy=True):
     # 개별(Individual) 모델들
     individual_results = []
     for i in range(params.n_workers):
-        mpath = f"models/individual_worker_{i}_final.pth"
+        mpath = f"runs/individual_{stamp}/models/individual_worker_{i}_final.pth"
         if os.path.exists(mpath):
             print(f"Evaluating Individual Worker {i}...")
             r = evaluate_over_envs(mpath, env_param_list, n_episodes, greedy)

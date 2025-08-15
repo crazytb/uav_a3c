@@ -24,19 +24,25 @@ class CustomEnv(gym.Env):
         self.max_channel_quality = 2
         self.max_remain_epochs = max_epoch_size
         self.max_proc_times = int(np.ceil(max_epoch_size / 2))
+        # --- Context for normalization (fixed bounds you use when sampling) ---
+        self._VEL_MIN, self._VEL_MAX = 30.0, 100.0
+        self._COMP_MAX = 120.0  # your randint upper bound
 
         self.action_space = spaces.Discrete(2)
         self.reward = 0
 
         self.observation_space = spaces.Dict({
             "available_computation_units": spaces.Discrete(self.max_available_computation_units),
-            "channel_quality": spaces.Discrete(self.max_channel_quality),
+            # "channel_quality": spaces.Discrete(self.max_channel_quality),
             "remain_epochs": spaces.Discrete(self.max_remain_epochs),
             "mec_comp_units": spaces.MultiDiscrete([max_comp_units] * max_queue_size),
             "mec_proc_times": spaces.MultiDiscrete([max_epoch_size] * max_queue_size),
             "queue_comp_units": spaces.Discrete(max_comp_units, start=1),
             "queue_proc_times": spaces.Discrete(max_epoch_size, start=1),
-        })
+            # ---- Context features (continuous) ----
+            # "ctx_vel":  spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+            # "ctx_comp": spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+         })
 
         import time
         from numpy.random import default_rng
@@ -44,8 +50,16 @@ class CustomEnv(gym.Env):
             seed = int(time.time() * 1000) % 2**32
         self.rng = default_rng(seed)
         self.reward_params = reward_params or {}
-    
+
+    def _ctx(self):
+        v = float(self.agent_velocities)
+        v_norm = (v - self._VEL_MIN) / max(1e-6, (self._VEL_MAX - self._VEL_MIN))
+        v_norm = float(np.clip(v_norm, 0.0, 1.0))
+        c_norm = float(np.clip(self.max_comp_units / self._COMP_MAX, 0.0, 1.0))
+        return np.array([v_norm], dtype=np.float32), np.array([c_norm], dtype=np.float32)
+
     def get_obs(self):
+        ctx_vel, ctx_comp = self._ctx()
         return {"available_computation_units": self.available_computation_units,
                 # "number_of_associated_terminals": self.number_of_associated_terminals,
                 "channel_quality": self.channel_quality,
@@ -53,8 +67,11 @@ class CustomEnv(gym.Env):
                 "mec_comp_units": self.mec_comp_units,
                 "mec_proc_times": self.mec_proc_times,
                 "queue_comp_units": self.queue_comp_units,
-                "queue_proc_times": self.queue_proc_times}
-    
+                "queue_proc_times": self.queue_proc_times,
+                # "ctx_vel": ctx_vel,
+                # "ctx_comp": ctx_comp
+        }
+
     def stepfunc(self, thres, x):
         if x > thres:
             return 1
@@ -78,7 +95,7 @@ class CustomEnv(gym.Env):
         TRAN_10 = fdtp*math.sqrt((2*math.pi*snr_thr)/snr_ave)
         TRAN_11 = 1 - TRAN_10
 
-        if self.channel_quality == 0:  # Bad state
+        if self.channel_quality == 0:  # Was in Bad state
             return 1 if random.random() > TRAN_00 else 0
         else:   # Good state
             return 0 if random.random() > TRAN_11 else 1
@@ -106,6 +123,8 @@ class CustomEnv(gym.Env):
         self.remain_processing = 0
         self.mec_comp_units = np.zeros(self.max_queue_size, dtype=int)
         self.mec_proc_times = np.zeros(self.max_queue_size, dtype=int)
+        self.cloud_comp_units = np.zeros(self.max_queue_size, dtype=int)
+        self.cloud_proc_times = np.zeros(self.max_queue_size, dtype=int)
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
         self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
 
@@ -121,9 +140,9 @@ class CustomEnv(gym.Env):
         """
         ALPHA = self.reward_params.get('ALPHA', 0.1)
         BETA = self.reward_params.get('BETA', 0.5)
-        GAMMA = self.reward_params.get('GAMMA', 2)
+        GAMMA = self.reward_params.get('GAMMA', 1.0)
         SCALE = self.reward_params.get('REWARD_SCALE', 1.0)
-        PENALTY = self.reward_params.get('FAILURE_PENALTY', 5.0)
+        PENALTY = self.reward_params.get('FAILURE_PENALTY', 0.0)
         comp_units = self.queue_comp_units
         proc_time = self.queue_proc_times
         success = False
@@ -148,14 +167,16 @@ class CustomEnv(gym.Env):
                 latency = proc_time
         elif action == 1:   # Offload
             if self.queue_comp_units > 0:
+                self.cloud_comp_units = self.fill_first_zero(self.cloud_comp_units, self.queue_comp_units)
+                self.cloud_proc_times = self.fill_first_zero(self.cloud_proc_times, self.queue_proc_times)
                 if self.channel_quality == 1:
                     success = True
                     energy = BETA * comp_units
-                    latency = GAMMA * proc_time
+                    latency = proc_time
                 elif self.channel_quality == 0:
                     success = False
                     energy = BETA * comp_units
-                    latency = GAMMA * proc_time
+                    latency = proc_time
         else:
             raise ValueError("Invalid action")
 
@@ -173,15 +194,24 @@ class CustomEnv(gym.Env):
         self.remain_epochs = self.remain_epochs - 1
 
         # Processing phase
-        zeroed_index = (self.mec_proc_times == 1)
-        if zeroed_index.any():
-            self.reward += self.mec_comp_units[zeroed_index].sum()
-            
-            self.available_computation_units += self.mec_comp_units[zeroed_index].sum()
-            self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_index == False], np.zeros(zeroed_index.sum(), dtype=int)])
-            self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_index == False], np.zeros(zeroed_index.sum(), dtype=int)])
-            
+        zeroed_mec = (self.mec_proc_times == 1)
+        if zeroed_mec.any():
+            done_comp = self.mec_comp_units[zeroed_mec].sum()
+            self.reward += done_comp
+            self.available_computation_units += done_comp
+            self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_mec == False], np.zeros(zeroed_mec.sum(), dtype=int)])
+            self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_mec == False], np.zeros(zeroed_mec.sum(), dtype=int)])
+
+        zeroed_cloud = (self.cloud_proc_times == 1)
+        if zeroed_cloud.any():
+            done_comp = self.cloud_comp_units[zeroed_cloud].sum()
+            self.reward += done_comp
+            self.available_computation_units += done_comp
+            self.cloud_proc_times = np.concatenate([self.cloud_proc_times[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
+            self.cloud_comp_units = np.concatenate([self.cloud_comp_units[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
+
         self.mec_proc_times = np.clip(self.mec_proc_times - 1, 0, self.max_proc_times)
+        self.cloud_proc_times = np.clip(self.cloud_proc_times - 1, 0, self.max_proc_times)
 
         next_obs = self.get_obs()
 
