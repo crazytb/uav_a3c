@@ -1,3 +1,4 @@
+from email import policy
 import torch
 import torch.multiprocessing as mp
 import torch.nn.functional as F
@@ -6,7 +7,8 @@ import threading
 import datetime as dt
 import pandas as pd
 import os, csv, time, queue
-from .networks import ActorCritic
+# from .networks import ActorCritic
+from .networks import RecurrentActorCritic
 from .params import *
 from .custom_env import make_env
 from .utils import flatten_dict_values
@@ -21,6 +23,7 @@ temp_env = temp_env_fn()
 sample_obs = temp_env.reset()[0]
 state_dim = len(flatten_dict_values(sample_obs))
 action_dim = temp_env.action_space.n
+ROLL_OUT_LEN = 20
 
 @dataclass
 class EpisodeLog:
@@ -293,6 +296,168 @@ class SharedAdam(torch.optim.Adam):
 #         if episode % 100 == 0:
 #             print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, Avg Loss: {avg_loss:.4f}")
 
+# def universal_worker(worker_id, model, optimizer, env_fn, log_path, 
+#                      use_global_model=True, 
+#                      total_episodes=1000,
+#                      metrics_queue: Optional[Queue] = None
+#                      ):
+#     torch.manual_seed(123 + worker_id)
+#     env = env_fn()
+    
+#     if use_global_model:
+#         local_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
+#         local_model.load_state_dict(model.state_dict())
+#         working_model = local_model
+#     else:
+#         working_model = model.to(device)
+
+#     global_step = 0  # (옵션) 전역 스텝 카운트
+
+#     for episode in range(1, total_episodes + 1):
+#         state, _ = env.reset()
+#         done = False
+#         total_reward = 0.0
+#         episode_steps = 0
+
+#         states, actions, rewards, values, log_probs, entropies = [], [], [], [], [], []
+
+#         while not done and episode_steps < ENV_PARAMS['max_epoch_size']:
+#             state_tensor = torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device)
+#             # logits, value = working_model(state_tensor)
+#             # probs = torch.softmax(logits, dim=-1)
+#             # log_prob = torch.log(probs + 1e-8)
+#             # entropy = -(log_prob * probs).sum(1, keepdim=True)
+
+#             # action = probs.multinomial(num_samples=1).detach()
+#             # selected_log_prob = log_prob.gather(1, action)
+#             # ★ 수치 안정적 버전 (logits로 직접 작업)
+#             logits, value = working_model(state_tensor)
+#             log_prob = torch.log_softmax(logits, dim=-1)   # ← 수치안정 (기존: torch.log(probs + 1e-8))
+#             probs    = torch.softmax(logits, dim=-1)
+#             entropy  = -(log_prob * probs).sum(dim=1)      # shape: [1]
+
+#             action = probs.multinomial(num_samples=1).detach()     # shape: [1,1]
+#             selected_log_prob = log_prob.gather(1, action).squeeze(1)  # shape: [1]
+
+#             next_state, reward, done, _, _ = env.step(action.item())
+
+#             # 저장
+#             states.append(state_tensor)
+#             actions.append(action)
+#             rewards.append(reward)
+#             # values.append(value)
+#             # log_probs.append(selected_log_prob)
+#             # entropies.append(entropy)
+#             values.append(value.view(-1))                  # (1,1) -> (1,)
+#             log_probs.append(selected_log_prob.view(-1))   # (1,)   -> (1,)
+#             entropies.append(entropy.view(-1))             # (1,)   -> (1,)
+
+#             total_reward += reward
+#             episode_steps += 1
+#             global_step += 1
+#             state = next_state
+
+#         # Returns
+#         R_bootstrap = 0.0 if done else working_model(
+#             torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device)
+#         )[1].item()
+
+#         returns = []
+#         R = R_bootstrap
+#         for i in reversed(range(len(rewards))):
+#             R = rewards[i] + gamma * R
+#             returns.insert(0, R)
+#         returns = torch.FloatTensor(returns).to(device)
+
+#         # Advantage
+#         values_tensor = torch.cat(values).squeeze()
+#         advantages = returns - values_tensor
+#         if len(advantages) > 1:
+#             advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+#         # Loss
+#         # policy_loss = 0
+#         # value_loss = 0
+#         # entropy_loss = 0
+#         # for i in range(len(log_probs)):
+#         #     policy_loss -= log_probs[i] * advantages[i].detach()
+#         #     value_loss += (returns[i] - values[i]).pow(2)
+#         #     entropy_loss -= entropies[i]
+
+#         # total_loss = (policy_loss +
+#         #               value_loss_coef * value_loss +
+#         #               entropy_coef * entropy_loss)
+#         # ★ 리스트 -> 텐서로 스택
+#         log_probs_t = torch.stack(log_probs)          # [T]
+#         values_t    = torch.stack(values)             # [T]
+#         entropies_t = torch.stack(entropies)          # [T]
+
+#         # ★ mean 기반 손실 (스케일 안정)
+#         policy_loss   = -(log_probs_t * advantages.detach()).mean()
+#         value_loss    = F.mse_loss(values_t, returns.unsqueeze(-1))         # == ((returns-values_t)**2).mean()
+#         entropy_bonus =  entropies_t.mean()
+
+#         # ★ 엔트로피는 보너스(탐색 증가) → 마이너스 부호로 더함
+#         total_loss = policy_loss + value_loss_coef * value_loss - entropy_coef * entropy_bonus
+
+
+#         # Update
+#         optimizer.zero_grad()
+#         total_loss.backward()
+#         for name, p in working_model.named_parameters():
+#             if p.grad is None:
+#                 print(f"[Worker {worker_id}] ⚠️ Gradient missing: {name}")
+
+#         if use_global_model:
+#             torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
+#             for lp, gp in zip(working_model.parameters(), model.parameters()):
+#                 if gp._grad is None:
+#                     gp._grad = lp.grad.clone()
+#                 else:
+#                     gp._grad += lp.grad
+#             optimizer.step()
+#             working_model.load_state_dict(model.state_dict())
+#         else:
+#             torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
+#             optimizer.step()
+
+#         # ====== CSV 로깅(기존) ======
+#         # avg_loss = total_loss.item() / max(1, len(rewards))
+#         avg_loss = float(total_loss.detach().item())
+
+#         with open(log_path, mode="a", newline="") as f:
+#             writer = csv.writer(f)
+#             writer.writerow([episode, total_reward, avg_loss])
+
+#         # ====== 에피소드 메트릭을 큐로 전송(신규) ======
+#         if metrics_queue is not None:
+#             # 에피소드 평균 손실/엔트로피 계산
+#             # avg_policy_loss = float(policy_loss.detach().item()) / max(1, len(rewards))
+#             # avg_value_loss  = float(value_loss.detach().item())  / max(1, len(rewards))
+#             # # entropy_loss는 -(entropy)를 누적 → 평균 엔트로피는 부호 반전
+#             # avg_entropy     = float(-entropy_loss.detach().item()) / max(1, len(rewards))
+#             # avg_total_loss  = float(total_loss.detach().item())   / max(1, len(rewards))
+#             avg_policy_loss = float(policy_loss.detach().item())
+#             avg_value_loss  = float(value_loss.detach().item())
+#             avg_entropy     = float(entropy_bonus.detach().item())     # ★ 양수
+#             avg_total_loss  = float(total_loss.detach().item())
+
+#             metrics_queue.put({
+#                 "step": global_step,          # (옵션) 전역 스텝
+#                 "worker_id": worker_id,
+#                 "episode": episode,
+#                 "reward": float(total_reward),
+#                 "length": int(episode_steps),
+#                 "policy_loss": avg_policy_loss,
+#                 "value_loss": avg_value_loss,
+#                 "entropy": avg_entropy,
+#                 "total_loss": avg_total_loss,
+#             })
+
+#         if episode % 100 == 0:
+#             print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, Avg Loss: {avg_loss:.4f}")
+#             print("  Example action probs:", probs.detach().cpu().numpy().round(3))
+
 def universal_worker(worker_id, model, optimizer, env_fn, log_path, 
                      use_global_model=True, 
                      total_episodes=1000,
@@ -300,15 +465,19 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
                      ):
     torch.manual_seed(123 + worker_id)
     env = env_fn()
-    
+
+    # --- (A) 로컬/글로벌 모델 준비 (RNN) ---
     if use_global_model:
-        local_model = ActorCritic(state_dim, action_dim, hidden_dim).to(device)
+        local_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
         local_model.load_state_dict(model.state_dict())
         working_model = local_model
     else:
         working_model = model.to(device)
 
-    global_step = 0  # (옵션) 전역 스텝 카운트
+    global_step = 0
+    # 로깅용 파일 초기화 유지
+    with open(log_path, mode="a", newline="") as f:
+        pass
 
     for episode in range(1, total_episodes + 1):
         state, _ = env.reset()
@@ -316,143 +485,154 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
         total_reward = 0.0
         episode_steps = 0
 
-        states, actions, rewards, values, log_probs, entropies = [], [], [], [], [], []
+        # --- (B) 에피소드 시작 시 hidden state 초기화 ---
+        hx = working_model.init_hidden(batch_size=1, device=device)  # (L=1, B=1, H)
 
         while not done and episode_steps < ENV_PARAMS['max_epoch_size']:
-            state_tensor = torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device)
-            # logits, value = working_model(state_tensor)
-            # probs = torch.softmax(logits, dim=-1)
-            # log_prob = torch.log(probs + 1e-8)
-            # entropy = -(log_prob * probs).sum(1, keepdim=True)
+            # --------- (C) T-step 롤아웃 수집 ----------
+            obs_seq, act_seq, rew_seq, done_seq = [], [], [], []
+            hx_roll_start = hx  # 이 시점의 hidden을 저장(rollout 역전파용)
 
-            # action = probs.multinomial(num_samples=1).detach()
-            # selected_log_prob = log_prob.gather(1, action)
-            # ★ 수치 안정적 버전 (logits로 직접 작업)
-            logits, value = working_model(state_tensor)
-            log_prob = torch.log_softmax(logits, dim=-1)   # ← 수치안정 (기존: torch.log(probs + 1e-8))
-            probs    = torch.softmax(logits, dim=-1)
-            entropy  = -(log_prob * probs).sum(dim=1)      # shape: [1]
+            t = 0
+            last_probs_np = None  # 디버그 출력용
+            while t < ROLL_OUT_LEN and (not done) and episode_steps < ENV_PARAMS['max_epoch_size']:
+                # 관측 전처리
+                obs_tensor = torch.as_tensor(
+                    flatten_dict_values(state), dtype=torch.float32, device=device
+                ).unsqueeze(0)  # (1, state_dim)
 
-            action = probs.multinomial(num_samples=1).detach()     # shape: [1,1]
-            selected_log_prob = log_prob.gather(1, action).squeeze(1)  # shape: [1]
+                # --- (C-1) 1-step RNN 전파 및 행동 샘플 ---
+                logits, value, hx = working_model.step(obs_tensor, hx)
+                dist = Categorical(logits=logits)
+                action = dist.sample()                      # (1,)
+                logp  = dist.log_prob(action)               # (1,)  # 저장은 이후 rollout 재계산에서 함
+                probs = torch.softmax(logits, dim=-1)       # (1, A)
+                last_probs_np = probs.detach().cpu().numpy()
 
-            next_state, reward, done, _, _ = env.step(action.item())
+                # 환경 한 스텝
+                next_state, reward, done, _, _ = env.step(action.item())
 
-            # 저장
-            states.append(state_tensor)
-            actions.append(action)
-            rewards.append(reward)
-            # values.append(value)
-            # log_probs.append(selected_log_prob)
-            # entropies.append(entropy)
-            values.append(value.view(-1))                  # (1,1) -> (1,)
-            log_probs.append(selected_log_prob.view(-1))   # (1,)   -> (1,)
-            entropies.append(entropy.view(-1))             # (1,)   -> (1,)
+                # 버퍼 저장 (학습 시점에 rollout()으로 다시 평가)
+                obs_seq.append(obs_tensor.squeeze(0))               # (state_dim,)
+                act_seq.append(action.squeeze(0))                   # ()
+                rew_seq.append(torch.as_tensor(reward, dtype=torch.float32, device=device))
+                done_seq.append(torch.as_tensor(done, dtype=torch.bool, device=device))
 
-            total_reward += reward
-            episode_steps += 1
-            global_step += 1
-            state = next_state
+                total_reward += float(reward)
+                episode_steps += 1
+                global_step += 1
+                state = next_state
+                t += 1
 
-        # Returns
-        R_bootstrap = 0.0 if done else working_model(
-            torch.FloatTensor(flatten_dict_values(state)).unsqueeze(0).to(device)
-        )[1].item()
+                # done이면 hidden 즉시 리셋 (수집 안정화)
+                if done:
+                    with torch.no_grad():
+                        hx = hx * 0.0
 
-        returns = []
-        R = R_bootstrap
-        for i in reversed(range(len(rewards))):
-            R = rewards[i] + gamma * R
-            returns.insert(0, R)
-        returns = torch.FloatTensor(returns).to(device)
+            # --------- (D) 텐서 스택 및 부트스트랩 값 ---------
+            # (B,T,...) 형태로 만들기 위해 B=1 차원 추가
+            B, T = 1, len(obs_seq)
+            if T == 0:
+                break  # 보호
 
-        # Advantage
-        values_tensor = torch.cat(values).squeeze()
-        advantages = returns - values_tensor
-        if len(advantages) > 1:
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+            obs_seq_t  = torch.stack(obs_seq, dim=0).unsqueeze(0)    # (1,T,state_dim)
+            act_seq_t  = torch.stack(act_seq, dim=0).unsqueeze(0)    # (1,T)
+            rew_seq_t  = torch.stack(rew_seq, dim=0).unsqueeze(0)    # (1,T)
+            done_seq_t = torch.stack(done_seq, dim=0).unsqueeze(0)   # (1,T)
 
-        # Loss
-        # policy_loss = 0
-        # value_loss = 0
-        # entropy_loss = 0
-        # for i in range(len(log_probs)):
-        #     policy_loss -= log_probs[i] * advantages[i].detach()
-        #     value_loss += (returns[i] - values[i]).pow(2)
-        #     entropy_loss -= entropies[i]
-
-        # total_loss = (policy_loss +
-        #               value_loss_coef * value_loss +
-        #               entropy_coef * entropy_loss)
-        # ★ 리스트 -> 텐서로 스택
-        log_probs_t = torch.stack(log_probs)          # [T]
-        values_t    = torch.stack(values)             # [T]
-        entropies_t = torch.stack(entropies)          # [T]
-
-        # ★ mean 기반 손실 (스케일 안정)
-        policy_loss   = -(log_probs_t * advantages.detach()).mean()
-        value_loss    = F.mse_loss(values_t, returns.unsqueeze(-1))         # == ((returns-values_t)**2).mean()
-        entropy_bonus =  entropies_t.mean()
-
-        # ★ 엔트로피는 보너스(탐색 증가) → 마이너스 부호로 더함
-        total_loss = policy_loss + value_loss_coef * value_loss - entropy_coef * entropy_bonus
-
-
-        # Update
-        optimizer.zero_grad()
-        total_loss.backward()
-        for name, p in working_model.named_parameters():
-            if p.grad is None:
-                print(f"[Worker {worker_id}] ⚠️ Gradient missing: {name}")
-
-        if use_global_model:
-            torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
-            for lp, gp in zip(working_model.parameters(), model.parameters()):
-                if gp._grad is None:
-                    gp._grad = lp.grad.clone()
+            with torch.no_grad():
+                # 마지막 상태의 V(s_T)로 부트스트랩 (done이면 0)
+                if done:
+                    v_last = torch.zeros(B, device=device)
                 else:
-                    gp._grad += lp.grad
-            optimizer.step()
-            working_model.load_state_dict(model.state_dict())
-        else:
-            torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
-            optimizer.step()
+                    last_obs_tensor = torch.as_tensor(
+                        flatten_dict_values(state), dtype=torch.float32, device=device
+                    ).unsqueeze(0)  # (1,state_dim)
+                    _, v_last_, _ = working_model.step(last_obs_tensor, hx)
+                    v_last = v_last_.squeeze(-1)  # (1,)
 
-        # ====== CSV 로깅(기존) ======
-        # avg_loss = total_loss.item() / max(1, len(rewards))
-        avg_loss = float(total_loss.detach().item())
+            # --------- (E) 롤아웃 재평가: logits/values 시퀀스 ----------
+            logits_seq, values_seq, _ = working_model.rollout(
+                x_seq=obs_seq_t, hx=hx_roll_start, done_seq=done_seq_t
+            )  # (1,T,A), (1,T,1)
 
+            dist_seq = Categorical(logits=logits_seq)          # (1,T,A)
+            logp_seq = dist_seq.log_prob(act_seq_t)            # (1,T)
+            entropy_seq = dist_seq.entropy()                   # (1,T)
+
+            values_seq = values_seq.squeeze(-1)                # (1,T)
+            done_f = done_seq_t.float()                        # (1,T)
+            mask = 1.0 - done_f                                # (1,T)
+
+            # --------- (F) Returns & Advantage (부트스트랩) ----------
+            returns = torch.zeros_like(rew_seq_t)              # (1,T)
+            R = v_last                                        # (1,)
+            for i in reversed(range(T)):
+                R = rew_seq_t[:, i] + gamma * R * mask[:, i]
+                returns[:, i] = R
+
+            advantages = returns - values_seq                  # (1,T)
+
+            # (선택) 어드밴티지 정규화
+            if T > 1:
+                adv_mean = advantages.mean()
+                adv_std  = advantages.std().clamp_min(1e-8)
+                advantages = (advantages - adv_mean) / adv_std
+
+            # --------- (G) Loss 계산 ----------
+            policy_loss   = -(logp_seq * advantages.detach()).mean()
+            value_loss    = F.mse_loss(values_seq, returns)
+            entropy_bonus =  entropy_seq.mean()
+
+            total_loss = policy_loss + value_loss_coef * value_loss - entropy_coef * entropy_bonus
+
+            # --------- (H) 업데이트 ----------
+            optimizer.zero_grad()
+            total_loss.backward()
+
+            for name, p in working_model.named_parameters():
+                if p.grad is None:
+                    print(f"[Worker {worker_id}] ⚠️ Gradient missing: {name}")
+
+            if use_global_model:
+                torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
+                for lp, gp in zip(working_model.parameters(), model.parameters()):
+                    if gp._grad is None:
+                        gp._grad = lp.grad.clone()
+                    else:
+                        gp._grad += lp.grad
+                optimizer.step()
+                working_model.load_state_dict(model.state_dict())
+            else:
+                torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
+                optimizer.step()
+
+            # 로깅(에피소드 누적 기준)
+            if metrics_queue is not None:
+                metrics_queue.put({
+                    "step": global_step,
+                    "worker_id": worker_id,
+                    "episode": episode,
+                    "reward": float(total_reward),
+                    "length": int(episode_steps),
+                    "policy_loss": float(policy_loss.detach().item()),
+                    "value_loss": float(value_loss.detach().item()),
+                    "entropy": float(entropy_bonus.detach().item()),
+                    "total_loss": float(total_loss.detach().item()),
+                })
+
+            # 디버그: 최근 확률
+            if episode % 100 == 0 and last_probs_np is not None:
+                print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, "
+                      f"Loss: {float(total_loss.detach().item()):.4f}")
+                print("  Example action probs:", last_probs_np.round(3))                
+        # while 끝
+
+        # per-worker csv (기존 유지)
         with open(log_path, mode="a", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([episode, total_reward, avg_loss])
+            writer.writerow([episode, total_reward, float(total_loss.detach().item())])
 
-        # ====== 에피소드 메트릭을 큐로 전송(신규) ======
-        if metrics_queue is not None:
-            # 에피소드 평균 손실/엔트로피 계산
-            # avg_policy_loss = float(policy_loss.detach().item()) / max(1, len(rewards))
-            # avg_value_loss  = float(value_loss.detach().item())  / max(1, len(rewards))
-            # # entropy_loss는 -(entropy)를 누적 → 평균 엔트로피는 부호 반전
-            # avg_entropy     = float(-entropy_loss.detach().item()) / max(1, len(rewards))
-            # avg_total_loss  = float(total_loss.detach().item())   / max(1, len(rewards))
-            avg_policy_loss = float(policy_loss.detach().item())
-            avg_value_loss  = float(value_loss.detach().item())
-            avg_entropy     = float(entropy_bonus.detach().item())     # ★ 양수
-            avg_total_loss  = float(total_loss.detach().item())
-
-            metrics_queue.put({
-                "step": global_step,          # (옵션) 전역 스텝
-                "worker_id": worker_id,
-                "episode": episode,
-                "reward": float(total_reward),
-                "length": int(episode_steps),
-                "policy_loss": avg_policy_loss,
-                "value_loss": avg_value_loss,
-                "entropy": avg_entropy,
-                "total_loss": avg_total_loss,
-            })
-
-        if episode % 100 == 0:
-            print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, Avg Loss: {avg_loss:.4f}")
 
 
 # def train(n_workers, total_episodes, env_param_list=None):
@@ -611,7 +791,7 @@ def train(n_workers, total_episodes, env_param_list=None):
     # 공통 CSV 경로
     agg_csv = os.path.join(logs_dir, "training_log.csv")
 
-    global_model = ActorCritic(state_dim, action_dim, hidden_dim)
+    global_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim)
     global_model.share_memory()
     global_model = global_model.to(device)
     optimizer = SharedAdam(global_model.parameters(), lr=lr)
@@ -710,7 +890,7 @@ def train_individual(n_workers, total_episodes, env_param_list=None):
         env_params = env_param_list[worker_id] if env_param_list else ENV_PARAMS
         env_fn = make_env(**env_params, reward_params=REWARD_PARAMS)
 
-        model = ActorCritic(state_dim, action_dim, hidden_dim).to(device)
+        model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
         # (선택) 개별 csv도 유지하려면 아래 유지

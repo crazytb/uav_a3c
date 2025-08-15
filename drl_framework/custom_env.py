@@ -175,15 +175,17 @@ class CustomEnv(gym.Env):
         # Processing phase
         zeroed_index = (self.mec_proc_times == 1)
         if zeroed_index.any():
+            self.reward += self.mec_comp_units[zeroed_index].sum()
+            
             self.available_computation_units += self.mec_comp_units[zeroed_index].sum()
             self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_index == False], np.zeros(zeroed_index.sum(), dtype=int)])
             self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_index == False], np.zeros(zeroed_index.sum(), dtype=int)])
-            self.reward += self.mec_comp_units[zeroed_index].sum()
+            
         self.mec_proc_times = np.clip(self.mec_proc_times - 1, 0, self.max_proc_times)
 
         next_obs = self.get_obs()
 
-        return next_obs, self.reward/100, self.remain_epochs == 0, False, {}
+        return next_obs, self.reward, self.remain_epochs == 0, False, {}
 
 
     def render(self):
