@@ -18,12 +18,13 @@ log_dir = "logs"
 # ===== A3C 구조 관련 파라미터 =====
 n_workers = 5                   # 병렬 에이전트(worker) 수
 # update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 2000    # worker 당 총 에피소드 수
+target_episode_count = 500    # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
     # 'max_comp_units': np.random.randint(1, 101),  # Max computation units
     'max_comp_units': 50,  # Max computation units
+    'max_comp_units_for_cloud': 10000,  # Max computation units for cloud
     'max_epoch_size': 100,  # Max epoch size
     'max_queue_size': 20,  # Max queue size
     'reward_weights': 1,  # Reward weights

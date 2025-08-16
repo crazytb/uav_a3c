@@ -14,7 +14,7 @@ for i in range(n_workers):
     e["max_comp_units"] = np.random.randint(80, 121)
     e["agent_velocities"] = np.random.randint(30, 101)
     env_param_list.append(e)
-
+# Reward 수정할 것.
 if __name__ == "__main__":
     train(n_workers=n_workers, 
           total_episodes=target_episode_count, 
