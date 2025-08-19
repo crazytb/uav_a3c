@@ -5,6 +5,7 @@ import numpy as np
 import os
 import csv
 from torch.distributions import Categorical
+from typing import Callable, Dict, Any
 
 from drl_framework.networks import RecurrentActorCritic  # 변경: RNN 모델 사용
 from drl_framework.custom_env import make_env
@@ -12,9 +13,18 @@ from drl_framework.utils import flatten_dict_values
 import drl_framework.params as params
 import copy
 
+def _deep_copy_obs(obs: Dict[str, Any]) -> Dict[str, Any]:
+    """딕셔너리 형태의 관측값을 깊은 복사하여 반환"""
+    out = {}
+    for k, v in obs.items():
+        if isinstance(v, np.ndarray):
+            out[k] = v.copy()
+        else:
+            out[k] = copy.deepcopy(v)
+    return out
 
 # 타임스탬프
-stamp = "20250816_225913"  # 예시 타임스탬프, 필요에 따라 변경
+stamp = "20250819_125410"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS

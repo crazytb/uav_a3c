@@ -32,14 +32,28 @@ class CustomEnv(gym.Env):
         self.action_space = spaces.Discrete(2)
         self.reward = 0
 
+        # self.observation_space = spaces.Dict({
+        #     "available_computation_units": spaces.Discrete(self.max_available_computation_units),
+        #     # "channel_quality": spaces.Discrete(self.max_channel_quality),
+        #     "remain_epochs": spaces.Discrete(self.max_remain_epochs),
+        #     "mec_comp_units": spaces.MultiDiscrete([max_comp_units] * max_queue_size),
+        #     "mec_proc_times": spaces.MultiDiscrete([max_epoch_size] * max_queue_size),
+        #     "queue_comp_units": spaces.Discrete(max_comp_units, start=1),
+        #     "queue_proc_times": spaces.Discrete(max_epoch_size, start=1),
+        #     "offload_success": spaces.Discrete(2),
+        #     # ---- Context features (continuous) ----
+        #     "ctx_vel":  spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+        #     "ctx_comp": spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
+        #  })
+
         self.observation_space = spaces.Dict({
-            "available_computation_units": spaces.Discrete(self.max_available_computation_units),
+            "available_computation_units": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
             # "channel_quality": spaces.Discrete(self.max_channel_quality),
-            "remain_epochs": spaces.Discrete(self.max_remain_epochs),
-            "mec_comp_units": spaces.MultiDiscrete([max_comp_units] * max_queue_size),
-            "mec_proc_times": spaces.MultiDiscrete([max_epoch_size] * max_queue_size),
-            "queue_comp_units": spaces.Discrete(max_comp_units, start=1),
-            "queue_proc_times": spaces.Discrete(max_epoch_size, start=1),
+            "remain_epochs": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
+            "mec_comp_units": spaces.Box(0.0, 1.0, (max_queue_size,), dtype=np.float32),
+            "mec_proc_times": spaces.Box(0.0, 1.0, (max_queue_size,), dtype=np.float32),
+            "queue_comp_units": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
+            "queue_proc_times": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
             "offload_success": spaces.Discrete(2),
             # ---- Context features (continuous) ----
             "ctx_vel":  spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
@@ -62,14 +76,14 @@ class CustomEnv(gym.Env):
 
     def get_obs(self):
         ctx_vel, ctx_comp = self._ctx()
-        return {"available_computation_units": self.available_computation_units,
+        return {"available_computation_units": self.available_computation_units / self.max_available_computation_units,
                 # "number_of_associated_terminals": self.number_of_associated_terminals,
-                "channel_quality": self.channel_quality,
-                "remain_epochs": self.remain_epochs,
-                "mec_comp_units": self.mec_comp_units,
-                "mec_proc_times": self.mec_proc_times,
-                "queue_comp_units": self.queue_comp_units,
-                "queue_proc_times": self.queue_proc_times,
+                "channel_quality": self.channel_quality / self.max_channel_quality,
+                "remain_epochs": self.remain_epochs / self.max_remain_epochs,
+                "mec_comp_units": self.mec_comp_units / self.max_comp_units,
+                "mec_proc_times": self.mec_proc_times / self.max_proc_times,
+                "queue_comp_units": self.queue_comp_units / self.max_comp_units,
+                "queue_proc_times": self.queue_proc_times / self.max_proc_times,
                 "offload_success": self.offload_success,
                 "ctx_vel": ctx_vel,
                 "ctx_comp": ctx_comp
@@ -213,7 +227,7 @@ class CustomEnv(gym.Env):
         if zeroed_cloud.any():
             done_comp = self.cloud_comp_units[zeroed_cloud].sum()
             self.reward += done_comp
-            self.available_computation_units += done_comp
+            # self.available_computation_units += done_comp
             self.cloud_proc_times = np.concatenate([self.cloud_proc_times[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
             self.cloud_comp_units = np.concatenate([self.cloud_comp_units[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
 
