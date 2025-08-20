@@ -13,7 +13,8 @@ from functools import partial
 
 class CustomEnv(gym.Env):
     def __init__(self, max_comp_units, max_epoch_size, max_queue_size, max_comp_units_for_cloud, 
-                 reward_weights=1, agent_velocities=None, seed=None, reward_params=None):
+                 reward_weights=1, agent_velocities=None, seed=None, reward_params=None, network_state=None,
+                 worker_id=None):
         super().__init__()
         self.max_comp_units = max_comp_units
         self.max_epoch_size = max_epoch_size
@@ -28,6 +29,9 @@ class CustomEnv(gym.Env):
         # --- Context for normalization (fixed bounds you use when sampling) ---
         self._VEL_MIN, self._VEL_MAX = 30.0, 100.0
         self._COMP_MAX = 120.0  # your randint upper bound
+        # Network state
+        self.network_state = network_state
+        self.worker_id = worker_id
 
         self.action_space = spaces.Discrete(2)
         self.reward = 0
@@ -186,6 +190,12 @@ class CustomEnv(gym.Env):
                 latency = proc_time
         elif action == 1:   # Offload
             if self.queue_comp_units > 0:
+                congestion_penalty = 0
+                if self.network_state:
+                    congestion = self.network_state.get_congestion_level()
+                    congestion_penalty = congestion * 10.0  # 간단한 페널티
+                    self.network_state.add_offloading_load(self.worker_id, self.queue_comp_units)  # worker_id는 나중에 전달
+                self.reward -= congestion_penalty
                 self.cloud_comp_units = self.fill_first_zero(self.cloud_comp_units, self.queue_comp_units)
                 self.cloud_proc_times = self.fill_first_zero(self.cloud_proc_times, self.queue_proc_times)
                 if self.channel_quality == 1:
@@ -201,11 +211,11 @@ class CustomEnv(gym.Env):
         else:
             raise ValueError("Invalid action")
 
-        if success:
-            efficiency = comp_units / (latency + 1e-8)  # Avoid division by zero
-        else:
-            efficiency = 0
-        self.reward = SCALE * (efficiency - energy)
+        # if success:
+            # efficiency = comp_units / (latency + 1e-8)  # Avoid division by zero
+        # else:
+            # efficiency = 0
+        # self.reward = SCALE * (efficiency - energy)
         
 
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
@@ -252,4 +262,8 @@ class CustomEnv(gym.Env):
         pass
 
 def make_env(**kwargs):
+    # network_state = kwargs.pop('network_state', None)
+    # def _make():
+        # return CustomEnv(**kwargs, network_state=network_state)
+    # return _make
     return partial(CustomEnv, **kwargs)

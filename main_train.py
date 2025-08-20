@@ -1,4 +1,5 @@
 from drl_framework.trainer import train, train_individual
+from drl_framework.network_state import NetworkState
 import drl_framework.params as params
 import copy
 import numpy as np
@@ -11,8 +12,9 @@ ENV_PARAMS = params.ENV_PARAMS
 env_param_list = []
 for i in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
-    e["max_comp_units"] = np.random.randint(80, 121)
-    e["agent_velocities"] = np.random.randint(30, 101)
+    # e["max_comp_units"] = np.random.randint(80, 121)
+    e["max_comp_units"] = np.arange(80, 121, 10)[i % n_workers]  # 80, 90, 100, 110, 120 순환
+    # e["agent_velocities"] = np.random.randint(30, 101)
     env_param_list.append(e)
 # Reward 수정할 것.
 if __name__ == "__main__":

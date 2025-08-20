@@ -13,6 +13,9 @@ from drl_framework.utils import flatten_dict_values
 import drl_framework.params as params
 import copy
 
+# 타임스탬프
+stamp = "20250820_141900"  # 예시 타임스탬프, 필요에 따라 변경
+
 def _deep_copy_obs(obs: Dict[str, Any]) -> Dict[str, Any]:
     """딕셔너리 형태의 관측값을 깊은 복사하여 반환"""
     out = {}
@@ -22,9 +25,6 @@ def _deep_copy_obs(obs: Dict[str, Any]) -> Dict[str, Any]:
         else:
             out[k] = copy.deepcopy(v)
     return out
-
-# 타임스탬프
-stamp = "20250819_152524"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
@@ -44,8 +44,8 @@ temp_env.close()
 env_param_list = []
 for _ in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
-    e["max_comp_units"] = np.random.randint(80, 121)
-    e["agent_velocities"] = np.random.randint(30, 101)
+    e["max_comp_units"] = np.random.randint(40, 161)
+    # e["agent_velocities"] = np.random.randint(30, 101)
     env_param_list.append(e)
 
 @torch.no_grad()
