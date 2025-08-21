@@ -328,8 +328,8 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
         # 디버그: 최근 확률
         if episode % 100 == 0 and last_probs_np is not None:
             print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, "
-                    f"Loss: {float(total_loss.detach().item()):.4f}")
-            print("  Example action probs:", last_probs_np.round(3))    
+                    f"Loss: {float(total_loss.detach().item()):.4f}, Example action probs: {last_probs_np.round(3)}")
+            # print(f"  Local vs Offload preference: {last_probs_np[0][0]:.3f} vs {last_probs_np[0][1]:.3f}")
 
         # per-worker csv (기존 유지)
         with open(log_path, mode="a", newline="") as f:
@@ -457,6 +457,7 @@ def train(n_workers, total_episodes, env_param_list=None):
 
     # 동기화 객체들 생성
     episode_barrier = mp.Barrier(n_workers) if n_workers > 1 else None
+    # max_cloud_capacity = ENV_PARAMS['max_comp_units_for_cloud', 10000]
     network_state = NetworkState(n_workers) if n_workers > 1 else None
 
     # 메트릭 수집용 큐 & 콜렉터 프로세스
@@ -467,7 +468,8 @@ def train(n_workers, total_episodes, env_param_list=None):
     for worker_id in range(n_workers):
         env_params = env_param_list[worker_id] if env_param_list else ENV_PARAMS
         # env_params['network_state'] = network_state
-        env_fn = make_env(**env_params, reward_params=REWARD_PARAMS, network_state=network_state)
+        env_fn = make_env(**env_params, reward_params=REWARD_PARAMS, 
+                          network_state=network_state, worker_id=worker_id)
         log_path = os.path.join(logs_dir, f"A3C_worker_{worker_id}_rewards.csv")
 
         p = mp.Process(
@@ -479,7 +481,7 @@ def train(n_workers, total_episodes, env_param_list=None):
                 metrics_queue=metrics_queue,   # ★ 큐 전달
                 episode_barrier=episode_barrier,
                 network_state=network_state
-            )
+            ) 
         )
         p.start()
         processes.append(p)
@@ -642,6 +644,8 @@ def individual_worker(worker_id, env_fn, log_path, total_episodes,
                     logits, value, hx = local_model.step(obs_tensor, hx)
                     dist = Categorical(logits=logits)
                     action = dist.sample()
+                    probs = torch.softmax(logits, dim=-1)       # (1, A)
+                last_probs_np = probs.detach().cpu().numpy()
 
                 next_state, reward, done, _, _ = env.step(action.item())
 
@@ -742,6 +746,20 @@ def individual_worker(worker_id, env_fn, log_path, total_episodes,
             writer = csv.writer(f)
             writer.writerow([episode, total_reward, float(total_loss.detach().item()) if 'total_loss' in locals() else 0])
 
+        # 디버그: 최근 확률
+        if episode % 100 == 0 and last_probs_np is not None:
+            print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, "
+                    f"Loss: {float(total_loss.detach().item()):.4f}, Example action probs: {last_probs_np.round(3)}")
+
+    # 학습 완료 후 모델 저장 (수정)
+    run_dir = os.path.dirname(log_path)  # runs/individual_{stamp}
+    models_dir = os.path.join(run_dir, "models")  # runs/individual_{stamp}/models
+    os.makedirs(models_dir, exist_ok=True)
+    
+    model_path = os.path.join(models_dir, f"individual_worker_{worker_id}_final.pth")
+    torch.save(local_model.state_dict(), model_path)
+    print(f"[Worker {worker_id}] Individual training complete. Model saved at: {model_path}")
+
 
 def train_individual(n_workers, total_episodes, env_param_list=None):
     """Individual A2C with multiprocessing and network sharing"""
@@ -753,7 +771,8 @@ def train_individual(n_workers, total_episodes, env_param_list=None):
     models_dir = os.path.join(run_dir, "models")
     os.makedirs(models_dir, exist_ok=True)
     os.makedirs(logs_dir, exist_ok=True)
-
+    
+    # 공통 CSV 경로
     agg_csv = os.path.join(logs_dir, "training_log.csv")
 
     # A3C와 동일한 동기화 객체들 생성
@@ -806,6 +825,11 @@ def train_individual(n_workers, total_episodes, env_param_list=None):
     
     # 개별 모델들 저장
     print(f"Individual A2C training complete. Logs saved under: {logs_dir}")
+
+    # 워커별 최종 모델 저장
+    # model_path = os.path.join(models_dir, f"individual_worker_{worker_id}_final.pth")
+    # torch.save(model.state_dict(), model_path)
+    # print(f"[Worker {worker_id}] Training complete. Model saved at: {model_path}")
     
     # 요약 CSV 생성
     df = pd.read_csv(agg_csv)

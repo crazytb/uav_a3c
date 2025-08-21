@@ -8,15 +8,17 @@ class NetworkState:
     Episode-level 동기화에서 네트워크 혼잡도를 추적합니다.
     """
     
-    def __init__(self, max_workers, max_network_capacity=1000.0):
+    def __init__(self, max_workers, max_network_capacity=1000.0, max_cloud_capacity=10000):
         self.max_workers = max_workers
         self.max_capacity = max_network_capacity
-        
+        self.max_cloud_capacity = max_cloud_capacity
+
         # 공유 메모리 변수들
         self.total_offloading_load = mp.Value('f', 0.0)  # 현재 총 오프로딩 부하
         self.current_episode = mp.Value('i', 0)          # 현재 에피소드 번호
         self.active_workers = mp.Value('i', 0)           # 현재 활성 워커 수
-        
+        self.available_cloud_capacity = mp.Value('f', max_cloud_capacity)
+
         # 워커별 통계 (Array는 고정 크기여야 함)
         self.worker_offload_counts = mp.Array('i', [0] * max_workers)
         self.worker_total_loads = mp.Array('f', [0.0] * max_workers)
@@ -30,13 +32,13 @@ class NetworkState:
         """워커가 에피소드를 시작할 때 호출"""
         with self.lock:
             self.active_workers.value += 1
-            print(f"[NetworkState] Worker {worker_id} started episode {self.current_episode.value}, active workers: {self.active_workers.value}")
+            # print(f"[NetworkState] Worker {worker_id} started episode {self.current_episode.value}, active workers: {self.active_workers.value}")
     
     def register_worker_end(self, worker_id):
         """워커가 에피소드를 끝낼 때 호출"""
         with self.lock:
             self.active_workers.value -= 1
-            print(f"[NetworkState] Worker {worker_id} finished episode {self.current_episode.value}, active workers: {self.active_workers.value}")
+            # print(f"[NetworkState] Worker {worker_id} finished episode {self.current_episode.value}, active workers: {self.active_workers.value}")
     
     def add_offloading_load(self, worker_id, load_amount):
         """워커가 오프로딩할 때 네트워크 부하 추가"""
@@ -59,6 +61,29 @@ class NetworkState:
         with self.lock:
             congestion = min(self.total_offloading_load.value / self.max_capacity, 1.0)
             return congestion
+        
+    def consume_cloud_resource(self, worker_id, resource_amount):
+        """클라우드 자원 소모"""
+        with self.lock:
+            if self.available_cloud_capacity.value >= resource_amount:
+                self.available_cloud_capacity.value -= resource_amount
+                return True  # 자원 할당 성공
+            else:
+                return False  # 자원 부족
+    
+    def release_cloud_resource(self, resource_amount):
+        """클라우드 자원 회복"""
+        with self.lock:
+            self.available_cloud_capacity.value = min(
+                self.max_cloud_capacity, 
+                self.available_cloud_capacity.value + resource_amount
+            )
+    
+    def get_cloud_utilization(self):
+        """클라우드 사용률 반환"""
+        with self.lock:
+            utilization = 1.0 - (self.available_cloud_capacity.value / self.max_cloud_capacity)
+            return utilization
     
     def get_network_stats(self):
         """현재 네트워크 통계 반환"""
@@ -83,7 +108,7 @@ class NetworkState:
             
             # 워커별 통계는 누적 유지 (전체 학습 과정 추적용)
             
-            print(f"[NetworkState] Reset for episode {self.current_episode.value}, residual load: {self.total_offloading_load.value:.2f}")
+            # print(f"[NetworkState] Reset for episode {self.current_episode.value}, residual load: {self.total_offloading_load.value:.2f}")
     
     def print_episode_summary(self):
         """에피소드 종료 시 요약 정보 출력"""

@@ -58,6 +58,7 @@ class CustomEnv(gym.Env):
             "mec_proc_times": spaces.Box(0.0, 1.0, (max_queue_size,), dtype=np.float32),
             "queue_comp_units": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
             "queue_proc_times": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
+            "local_success": spaces.Discrete(2),
             "offload_success": spaces.Discrete(2),
             # ---- Context features (continuous) ----
             "ctx_vel":  spaces.Box(low=0.0, high=1.0, shape=(1,), dtype=np.float32),
@@ -88,6 +89,7 @@ class CustomEnv(gym.Env):
                 "mec_proc_times": self.mec_proc_times / self.max_proc_times,
                 "queue_comp_units": self.queue_comp_units / self.max_comp_units,
                 "queue_proc_times": self.queue_proc_times / self.max_proc_times,
+                "local_success": self.local_success,
                 "offload_success": self.offload_success,
                 "ctx_vel": ctx_vel,
                 "ctx_comp": ctx_comp
@@ -149,6 +151,7 @@ class CustomEnv(gym.Env):
         self.cloud_proc_times = np.zeros(self.max_queue_size, dtype=int)
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
         self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
+        self.local_success = 0
         self.offload_success = 0
 
         self.reward = 0
@@ -170,6 +173,7 @@ class CustomEnv(gym.Env):
         proc_time = self.queue_proc_times
         success = False
         energy = 0.0
+        congestion_penalty = 0.0
         self.reward = 0
         # forwarding phase
         # 0: local process, 1: offload
@@ -184,30 +188,35 @@ class CustomEnv(gym.Env):
                 success = True
                 # energy = ALPHA * comp_units
                 latency = proc_time
+                self.local_success = 1
             else:
                 success = False
                 # energy = 0.0
                 latency = proc_time
+                self.local_success = 0
         elif action == 1:   # Offload
-            if self.queue_comp_units > 0:
-                congestion_penalty = 0
-                if self.network_state:
-                    congestion = self.network_state.get_congestion_level()
-                    congestion_penalty = congestion * 10.0  # 간단한 페널티
-                    self.network_state.add_offloading_load(self.worker_id, self.queue_comp_units)  # worker_id는 나중에 전달
-                self.reward -= congestion_penalty
+            case_action = ((self.available_computation_units_for_cloud >= self.queue_comp_units) and
+                            (self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
+                            (self.queue_comp_units > 0) and
+                            (self.channel_quality == 1))  # Only offload if channel quality is good
+            if self.network_state:
+                congestion = self.network_state.get_congestion_level()
+                congestion_penalty = congestion * 10.0  # 간단한 페널티
+                self.network_state.add_offloading_load(self.worker_id, self.queue_comp_units)  # worker_id는 나중에 전달
+            # self.reward -= congestion_penalty
+            if case_action:
+                self.available_computation_units_for_cloud -= self.queue_comp_units
                 self.cloud_comp_units = self.fill_first_zero(self.cloud_comp_units, self.queue_comp_units)
                 self.cloud_proc_times = self.fill_first_zero(self.cloud_proc_times, self.queue_proc_times)
-                if self.channel_quality == 1:
-                    success = True
-                    # energy = BETA * comp_units
-                    latency = proc_time
-                    self.offload_success = 1
-                elif self.channel_quality == 0:
-                    success = False
-                    # energy = BETA * comp_units
-                    latency = proc_time
-                    self.offload_success = 0
+                success = True
+                # energy = BETA * comp_units
+                latency = proc_time
+                self.offload_success = 1
+            else:
+                success = False
+                # energy = BETA * comp_units
+                latency = proc_time
+                self.offload_success = 0
         else:
             raise ValueError("Invalid action")
 
@@ -238,6 +247,8 @@ class CustomEnv(gym.Env):
             done_comp = self.cloud_comp_units[zeroed_cloud].sum()
             self.reward += done_comp
             # self.available_computation_units += done_comp
+            if self.network_state:
+                self.network_state.release_cloud_resource(done_comp)
             self.cloud_proc_times = np.concatenate([self.cloud_proc_times[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
             self.cloud_comp_units = np.concatenate([self.cloud_comp_units[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
 
