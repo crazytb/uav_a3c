@@ -133,3 +133,10 @@ class RecurrentActorCritic(nn.Module):
         logits_seq = torch.cat(logits_list, dim=1)  # (B,T,A)
         values_seq = torch.cat(values_list, dim=1)  # (B,T,1)
         return logits_seq, values_seq, h
+    
+    def forward(self, x, hidden=None):
+        # x: (batch, seq_len, state_dim)
+        rnn_out, hidden = self.rnn(x, hidden)
+        logits = self.policy(rnn_out)
+        value = self.value(rnn_out)
+        return logits, value, hidden

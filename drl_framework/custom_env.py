@@ -25,7 +25,7 @@ class CustomEnv(gym.Env):
         self.max_available_computation_units_for_cloud = max_comp_units_for_cloud
         self.max_channel_quality = 2
         self.max_remain_epochs = max_epoch_size
-        self.max_proc_times = int(np.ceil(max_epoch_size / 2))
+        self.max_proc_times = int(np.ceil(max_epoch_size / 10))
         # --- Context for normalization (fixed bounds you use when sampling) ---
         self._VEL_MIN, self._VEL_MAX = 30.0, 100.0
         self._COMP_MAX = 120.0  # your randint upper bound
@@ -33,7 +33,7 @@ class CustomEnv(gym.Env):
         self.network_state = network_state
         self.worker_id = worker_id
 
-        self.action_space = spaces.Discrete(2)
+        self.action_space = spaces.Discrete(3)  # 0: LOCAL, 1: OFFLOAD, 2: DISCARD
         self.reward = 0
 
         # self.observation_space = spaces.Dict({
@@ -83,7 +83,7 @@ class CustomEnv(gym.Env):
         ctx_vel, ctx_comp = self._ctx()
         return {"available_computation_units": self.available_computation_units / self.max_available_computation_units,
                 # "number_of_associated_terminals": self.number_of_associated_terminals,
-                "channel_quality": self.channel_quality / self.max_channel_quality,
+                "channel_quality": self.channel_quality,
                 "remain_epochs": self.remain_epochs / self.max_remain_epochs,
                 "mec_comp_units": self.mec_comp_units / self.max_comp_units,
                 "mec_proc_times": self.mec_proc_times / self.max_proc_times,
@@ -131,7 +131,14 @@ class CustomEnv(gym.Env):
                 break
         return arr
     
-    
+    def fill_first_zero_pair(self, arr1, arr2, value1, value2):
+        """두 배열에 동시에 값을 채우는 헬퍼 함수"""
+        for i in range(len(arr1)):
+            if arr1[i] == 0:
+                arr1[i] = value1
+                arr2[i] = value2
+                break
+        return arr1, arr2
 
     def reset(self, seed=None):
         """
@@ -147,8 +154,10 @@ class CustomEnv(gym.Env):
         self.remain_processing = 0
         self.mec_comp_units = np.zeros(self.max_queue_size, dtype=int)
         self.mec_proc_times = np.zeros(self.max_queue_size, dtype=int)
+        self.mec_original_times = np.zeros(self.max_queue_size, dtype=int)
         self.cloud_comp_units = np.zeros(self.max_queue_size, dtype=int)
         self.cloud_proc_times = np.zeros(self.max_queue_size, dtype=int)
+        self.cloud_original_times = np.zeros(self.max_queue_size, dtype=int)
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
         self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
         self.local_success = 0
@@ -164,11 +173,14 @@ class CustomEnv(gym.Env):
         """
         Returns: observation, reward, terminated, truncated, info
         """
+        LOCAL, OFFLOAD, DISCARD = 0, 1, 2
         ALPHA = self.reward_params.get('ALPHA')
         BETA = self.reward_params.get('BETA')
         GAMMA = self.reward_params.get('GAMMA')
         SCALE = self.reward_params.get('REWARD_SCALE')
         PENALTY = self.reward_params.get('FAILURE_PENALTY')
+        ENERGY_COST_COEFF = self.reward_params.get('ENERGY_COST_COEFF')
+
         comp_units = self.queue_comp_units
         proc_time = self.queue_proc_times
         success = False
@@ -177,14 +189,17 @@ class CustomEnv(gym.Env):
         self.reward = 0
         # forwarding phase
         # 0: local process, 1: offload
-        if action == 0:  # Local process
+        if action == LOCAL:  # Local process
             case_action = ((self.available_computation_units >= self.queue_comp_units) and 
                            (self.mec_comp_units[self.mec_comp_units == 0].size > 0) and
                            (self.queue_comp_units > 0))
+            self.reward -= self.queue_comp_units * ENERGY_COST_COEFF
             if case_action:
                 self.available_computation_units -= self.queue_comp_units
+                # 🆕 comp_units와 proc_times를 함께 저장
                 self.mec_comp_units = self.fill_first_zero(self.mec_comp_units, self.queue_comp_units)
                 self.mec_proc_times = self.fill_first_zero(self.mec_proc_times, self.queue_proc_times)
+                self.mec_original_times = self.fill_first_zero(self.mec_original_times, self.queue_proc_times)
                 success = True
                 # energy = ALPHA * comp_units
                 latency = proc_time
@@ -194,11 +209,12 @@ class CustomEnv(gym.Env):
                 # energy = 0.0
                 latency = proc_time
                 self.local_success = 0
-        elif action == 1:   # Offload
+        elif action == OFFLOAD:   # Offload
             case_action = ((self.available_computation_units_for_cloud >= self.queue_comp_units) and
                             (self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
                             (self.queue_comp_units > 0) and
                             (self.channel_quality == 1))  # Only offload if channel quality is good
+            self.reward -= self.queue_comp_units * ENERGY_COST_COEFF
             if self.network_state:
                 congestion = self.network_state.get_congestion_level()
                 congestion_penalty = congestion * 10.0  # 간단한 페널티
@@ -206,8 +222,10 @@ class CustomEnv(gym.Env):
             # self.reward -= congestion_penalty
             if case_action:
                 self.available_computation_units_for_cloud -= self.queue_comp_units
+                # 🆕 comp_units와 proc_times를 함께 저장
                 self.cloud_comp_units = self.fill_first_zero(self.cloud_comp_units, self.queue_comp_units)
                 self.cloud_proc_times = self.fill_first_zero(self.cloud_proc_times, self.queue_proc_times)
+                self.cloud_original_times = self.fill_first_zero(self.cloud_original_times, self.queue_proc_times)
                 success = True
                 # energy = BETA * comp_units
                 latency = proc_time
@@ -217,6 +235,8 @@ class CustomEnv(gym.Env):
                 # energy = BETA * comp_units
                 latency = proc_time
                 self.offload_success = 0
+        elif action == DISCARD:  # Discard
+            success = False
         else:
             raise ValueError("Invalid action")
 
@@ -226,7 +246,7 @@ class CustomEnv(gym.Env):
             # efficiency = 0
         # self.reward = SCALE * (efficiency - energy)
         
-
+        # 새로운 작업 생성
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
         self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
             
@@ -237,20 +257,32 @@ class CustomEnv(gym.Env):
         zeroed_mec = (self.mec_proc_times == 1)
         if zeroed_mec.any():
             done_comp = self.mec_comp_units[zeroed_mec].sum()
+            # 🆕 정확한 원본 처리 시간 사용
+            consumed_time = self.mec_original_times[zeroed_mec].sum()
             self.reward += done_comp
             self.available_computation_units += done_comp
-            self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_mec == False], np.zeros(zeroed_mec.sum(), dtype=int)])
-            self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_mec == False], np.zeros(zeroed_mec.sum(), dtype=int)])
+            self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_mec == False], 
+                                                  np.zeros(zeroed_mec.sum(), dtype=int)])
+            self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_mec == False], 
+                                                  np.zeros(zeroed_mec.sum(), dtype=int)])
+            self.mec_original_times = np.concatenate([self.mec_original_times[zeroed_mec == False], 
+                                                      np.zeros(zeroed_mec.sum(), dtype=int)])
 
         zeroed_cloud = (self.cloud_proc_times == 1)
         if zeroed_cloud.any():
             done_comp = self.cloud_comp_units[zeroed_cloud].sum()
-            self.reward += done_comp
+            # 🆕 정확한 원본 처리 시간 사용
+            consumed_time = self.cloud_original_times[zeroed_cloud].sum()
+            self.reward += (done_comp - BETA*consumed_time)
             # self.available_computation_units += done_comp
             if self.network_state:
                 self.network_state.release_cloud_resource(done_comp)
-            self.cloud_proc_times = np.concatenate([self.cloud_proc_times[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
-            self.cloud_comp_units = np.concatenate([self.cloud_comp_units[zeroed_cloud == False], np.zeros(zeroed_cloud.sum(), dtype=int)])
+            self.cloud_proc_times = np.concatenate([self.cloud_proc_times[zeroed_cloud == False], 
+                                                    np.zeros(zeroed_cloud.sum(), dtype=int)])
+            self.cloud_comp_units = np.concatenate([self.cloud_comp_units[zeroed_cloud == False], 
+                                                    np.zeros(zeroed_cloud.sum(), dtype=int)])
+            self.cloud_original_times = np.concatenate([self.cloud_original_times[zeroed_cloud == False], 
+                                                        np.zeros(zeroed_cloud.sum(), dtype=int)])
 
         self.mec_proc_times = np.clip(self.mec_proc_times - 1, 0, self.max_proc_times)
         self.cloud_proc_times = np.clip(self.cloud_proc_times - 1, 0, self.max_proc_times)

@@ -14,7 +14,7 @@ for i in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
     # e["max_comp_units"] = np.random.randint(80, 121)
     e["max_comp_units"] = np.arange(80, 121, 10)[i % n_workers]  # 80, 90, 100, 110, 120 순환
-    e["agent_velocities"] = np.arange(30, 101)[i % n_workers] 
+    # e["agent_velocities"] = np.arange(30, 101)[i % n_workers] 
     env_param_list.append(e)
 # Reward 수정할 것.
 if __name__ == "__main__":
@@ -22,5 +22,5 @@ if __name__ == "__main__":
           total_episodes=target_episode_count, 
           env_param_list=env_param_list)
     train_individual(n_workers=n_workers, 
-                     total_episodes=target_episode_count*n_workers, 
+                     total_episodes=target_episode_count, 
                      env_param_list=env_param_list)

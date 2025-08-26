@@ -294,6 +294,10 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
             optimizer.zero_grad()
             total_loss.backward()
 
+            # Gradient clipping
+            torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
+
+
             for name, p in working_model.named_parameters():
                 if p.grad is None:
                     print(f"[Worker {worker_id}] ⚠️ Gradient missing: {name}")

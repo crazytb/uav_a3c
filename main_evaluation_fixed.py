@@ -14,7 +14,7 @@ import drl_framework.params as params
 import copy
 
 # 타임스탬프
-stamp = "20250821_143948"  # 예시 타임스탬프, 필요에 따라 변경
+stamp = "20250826_030707"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
@@ -39,36 +39,34 @@ for _ in range(n_workers):
     env_param_list.append(e)
 
 @torch.no_grad()
-def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, render=False):
-    """단일 환경(env_kwargs)에서 pth 모델 1개 평가"""
-    # 모델 로드 (RNN)
+def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, render=False, log_actions=False, log_prefix=""):
+    """단일 환경에서 모델 평가 및 액션 로깅"""
     model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
     state_dict = torch.load(model_path, map_location=device)
     model.load_state_dict(state_dict)
     model.eval()
 
-    # 환경 생성
     env_fn = make_env(**env_kwargs, reward_params=REWARD_PARAMS)
     env = env_fn()
 
     episode_rewards, episode_lengths = [], []
+    
+    # 액션 로깅용 데이터
+    action_logs = []
 
-    for _ in range(n_episodes):
+    for ep_idx in range(n_episodes):
         obs, _ = env.reset()
         done = False
         total_reward = 0.0
         steps = 0
-
-        # 에피소드 시작 시 hidden state 초기화
-        hx = model.init_hidden(batch_size=1, device=device)  # (L,1,H)
+        
+        hx = model.init_hidden(batch_size=1, device=device)
 
         while not done and steps < env.max_epoch_size:
-            # 관측 벡터화
             obs_tensor = torch.as_tensor(
                 flatten_dict_values(obs), dtype=torch.float32, device=device
-            ).unsqueeze(0)  # (1, state_dim)
+            ).unsqueeze(0)
 
-            # 한 스텝 전파
             logits, value, hx = model.step(obs_tensor, hx)
 
             if greedy:
@@ -77,15 +75,46 @@ def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, r
                 dist = Categorical(logits=logits)
                 action = dist.sample().item()
 
+            # 액션 로깅 - 자동으로 모든 observation 처리
+            if log_actions:
+                log_entry = {
+                    'episode': ep_idx,
+                    'step': steps,
+                    'action': action,
+                    'distribution': logits[0].softmax(dim=-1).cpu().tolist(),
+                }
+                
+                # obs의 모든 키-값을 자동으로 추가
+                for key, value in obs.items():
+                    if isinstance(value, np.ndarray):
+                        # 배열인 경우 요약 정보만
+                        log_entry[f'{key}_sum'] = float(np.sum(value))
+                        log_entry[f'{key}_nonzero'] = int(np.count_nonzero(value))
+                    elif hasattr(value, 'item'):
+                        log_entry[key] = value.item()
+                    else:
+                        log_entry[key] = float(value) if not isinstance(value, int) else value
+                
+                # 환경 파라미터 추가
+                log_entry['reward'] = 0  # 다음 스텝에서 업데이트
+                log_entry['env_max_comp_units'] = env_kwargs.get('max_comp_units', 'N/A')
+                log_entry['env_agent_velocities'] = env_kwargs.get('agent_velocities', 'N/A')
+                
+                action_logs.append(log_entry)
+
+
             next_obs, reward, terminated, truncated, _ = env.step(action)
             done = terminated or truncated
+            
+            # 이전 스텝의 reward 업데이트
+            if log_actions and action_logs:
+                action_logs[-1]['reward'] = reward
 
             total_reward += float(reward)
             steps += 1
             obs = next_obs
 
             if done:
-                # 다음 에피소드 대비 hidden 리셋
                 hx = hx * 0.0
 
             if render:
@@ -95,6 +124,21 @@ def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, r
         episode_lengths.append(steps)
 
     env.close()
+
+    # CSV 저장
+    if log_actions and action_logs:
+        import csv
+        csv_filename = f"{log_prefix}_actions.csv"
+        
+        # 첫 번째 로그 엔트리에서 필드명 자동 추출
+        if action_logs:
+            fieldnames = list(action_logs[0].keys())
+            
+            with open(csv_filename, 'w', newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(action_logs)
+            print(f"  Saved action logs to {csv_filename}")
 
     return {
         "mean_reward": float(np.mean(episode_rewards)),
@@ -209,8 +253,47 @@ def save_detailed_results(results, filename="evaluation_results.csv"):
                                  r["min_reward"], r["max_reward"], r["mean_length"]])
 
 if __name__ == "__main__":
-    print("Starting model evaluation...")
-    results = compare_all_models(env_param_list, n_episodes=100, greedy=True)
+    # print("Starting model evaluation...")
+    results = compare_all_models(env_param_list, n_episodes=100, greedy=False)
     print_results(results)
     save_detailed_results(results)
     print("\nDetailed results saved to evaluation_results.csv")
+    
+    print("Starting model evaluation with action logging...")
+    # 적은 수의 에피소드로 액션 로깅
+    n_episodes_for_logging = 10  # 액션 로깅용 에피소드 수
+    
+    # A3C Global 모델 평가 및 액션 로깅
+    gpath = f"runs/a3c_{stamp}/models/global_final.pth"
+    if os.path.exists(gpath):
+        print("Evaluating A3C Global Model with action logging...")
+        for env_idx, env_params in enumerate(env_param_list[:3]):  # 처음 3개 환경만
+            print(f"  Environment {env_idx}...")
+            evaluate_model_on_env(
+                gpath, 
+                env_params, 
+                n_episodes=n_episodes_for_logging, 
+                greedy=False,
+                log_actions=True,
+                log_prefix=f"a3c_global_env{env_idx}"
+            )
+    else:
+        print(f"❌ A3C Global model not found: {gpath}")
+    
+    # Individual 모델들 평가 및 액션 로깅
+    for worker_id in range(min(2, n_workers)):  # 처음 2개 워커만
+        mpath = f"runs/individual_{stamp}/models/individual_worker_{worker_id}_final.pth"
+        if os.path.exists(mpath):
+            print(f"Evaluating Individual Worker {worker_id} with action logging...")
+            for env_idx, env_params in enumerate(env_param_list[:3]):  # 처음 3개 환경만
+                print(f"  Environment {env_idx}...")
+                evaluate_model_on_env(
+                    mpath,
+                    env_params,
+                    n_episodes=n_episodes_for_logging,
+                    greedy=False,
+                    log_actions=True,
+                    log_prefix=f"individual_w{worker_id}_env{env_idx}"
+                )
+        else:
+            print(f"❌ Individual Worker {worker_id} model not found: {mpath}")
