@@ -56,6 +56,8 @@ class CustomEnv(gym.Env):
             "remain_epochs": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
             "mec_comp_units": spaces.Box(0.0, 1.0, (max_queue_size,), dtype=np.float32),
             "mec_proc_times": spaces.Box(0.0, 1.0, (max_queue_size,), dtype=np.float32),
+            # "cloud_comp_units": spaces.Box(0.0, 1.0, (max_queue_size,), dtype=np.float32),
+            # "cloud_proc_times": spaces.Box(0.0, 1.0, (max_queue_size,), dtype=np.float32),
             "queue_comp_units": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
             "queue_proc_times": spaces.Box(0.0, 1.0, (1,), dtype=np.float32),
             "local_success": spaces.Discrete(2),
@@ -87,6 +89,8 @@ class CustomEnv(gym.Env):
                 "remain_epochs": self.remain_epochs / self.max_remain_epochs,
                 "mec_comp_units": self.mec_comp_units / self.max_comp_units,
                 "mec_proc_times": self.mec_proc_times / self.max_proc_times,
+                # "cloud_comp_units": self.cloud_comp_units / self.max_comp_units,
+                # "cloud_proc_times": self.cloud_proc_times / self.max_proc_times,
                 "queue_comp_units": self.queue_comp_units / self.max_comp_units,
                 "queue_proc_times": self.queue_proc_times / self.max_proc_times,
                 "local_success": self.local_success,
@@ -180,6 +184,7 @@ class CustomEnv(gym.Env):
         SCALE = self.reward_params.get('REWARD_SCALE')
         PENALTY = self.reward_params.get('FAILURE_PENALTY')
         ENERGY_COST_COEFF = self.reward_params.get('ENERGY_COST_COEFF')
+        CONGESTION_COST_COEFF = self.reward_params.get('CONGESTION_COST_COEFF')
 
         comp_units = self.queue_comp_units
         proc_time = self.queue_proc_times
@@ -193,7 +198,7 @@ class CustomEnv(gym.Env):
             case_action = ((self.available_computation_units >= self.queue_comp_units) and 
                            (self.mec_comp_units[self.mec_comp_units == 0].size > 0) and
                            (self.queue_comp_units > 0))
-            self.reward -= self.queue_comp_units * ENERGY_COST_COEFF
+            self.reward -= (self.queue_comp_units / self.max_comp_units) * ENERGY_COST_COEFF
             if case_action:
                 self.available_computation_units -= self.queue_comp_units
                 # 🆕 comp_units와 proc_times를 함께 저장
@@ -214,12 +219,12 @@ class CustomEnv(gym.Env):
                             (self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
                             (self.queue_comp_units > 0) and
                             (self.channel_quality == 1))  # Only offload if channel quality is good
-            self.reward -= self.queue_comp_units * ENERGY_COST_COEFF
+            self.reward -= (self.queue_comp_units / self.max_comp_units) * ENERGY_COST_COEFF
             if self.network_state:
                 congestion = self.network_state.get_congestion_level()
                 congestion_penalty = congestion * 10.0  # 간단한 페널티
                 self.network_state.add_offloading_load(self.worker_id, self.queue_comp_units)  # worker_id는 나중에 전달
-            # self.reward -= congestion_penalty
+            self.reward -= congestion_penalty * CONGESTION_COST_COEFF
             if case_action:
                 self.available_computation_units_for_cloud -= self.queue_comp_units
                 # 🆕 comp_units와 proc_times를 함께 저장
@@ -239,12 +244,9 @@ class CustomEnv(gym.Env):
             success = False
         else:
             raise ValueError("Invalid action")
-
-        # if success:
-            # efficiency = comp_units / (latency + 1e-8)  # Avoid division by zero
-        # else:
-            # efficiency = 0
-        # self.reward = SCALE * (efficiency - energy)
+        
+        if not success:
+            self.reward -= PENALTY
         
         # 새로운 작업 생성
         self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)

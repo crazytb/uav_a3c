@@ -14,7 +14,7 @@ import drl_framework.params as params
 import copy
 
 # 타임스탬프
-stamp = "20250826_030707"  # 예시 타임스탬프, 필요에 따라 변경
+stamp = "20250826_161717"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
@@ -38,7 +38,7 @@ for _ in range(n_workers):
     # e["agent_velocities"] = np.random.randint(30, 101)
     env_param_list.append(e)
 
-@torch.no_grad()
+# @torch.no_grad()
 def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, render=False, log_actions=False, log_prefix=""):
     """단일 환경에서 모델 평가 및 액션 로깅"""
     model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)

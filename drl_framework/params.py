@@ -37,8 +37,9 @@ REWARD_PARAMS = {
     'BETA': 0.5,              # 오프로드 시간 비용 계수
     'GAMMA': 2.0,               # 전송 지연 계수
     'REWARD_SCALE': 1.0,     # 보상 배율
-    'FAILURE_PENALTY': 0.0,    # 실패 시 패널티
-    'ENERGY_COST_COEFF': 0.01,
+    'FAILURE_PENALTY': 1.0,    # 실패 시 패널티
+    'ENERGY_COST_COEFF': 0.1,
+    'CONGESTION_COST_COEFF': 0.1
 }
 
 # ===== 학습 관련 파라미터 =====
