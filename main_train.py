@@ -16,7 +16,7 @@ for i in range(n_workers):
     e["max_comp_units"] = np.arange(40, 161, 10)[i % n_workers]  # 40, 50, 60, 70, 80 순환
     # e["agent_velocities"] = np.arange(30, 101)[i % n_workers] 
     env_param_list.append(e)
-# Reward 수정할 것.
+# Do action masking!!
 if __name__ == "__main__":
     train(n_workers=n_workers, 
           total_episodes=target_episode_count, 
