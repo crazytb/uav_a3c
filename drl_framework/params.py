@@ -23,7 +23,7 @@ target_episode_count = 5000    # worker 당 총 에피소드 수
 # Env params
 ENV_PARAMS = {
     # 'max_comp_units': np.random.randint(1, 101),  # Max computation units
-    'max_comp_units': 50,  # Max computation units
+    'max_comp_units': 200,  # Max computation units
     'max_comp_units_for_cloud': 1000,  # Max computation units for cloud
     'max_epoch_size': 100,  # Max epoch size
     'max_queue_size': 20,  # Max queue size
@@ -37,8 +37,8 @@ REWARD_PARAMS = {
     'BETA': 0.5,              # 오프로드 시간 비용 계수
     'GAMMA': 2.0,               # 전송 지연 계수
     'REWARD_SCALE': 1.0,     # 보상 배율
-    'FAILURE_PENALTY': 1.0,    # 실패 시 패널티
-    'ENERGY_COST_COEFF': 0.1,
+    'FAILURE_PENALTY': 2.0,    # 실패 시 패널티
+    'ENERGY_COST_COEFF': 1.0,
     'CONGESTION_COST_COEFF': 0.1
 }
 

@@ -14,7 +14,7 @@ import drl_framework.params as params
 import copy
 
 # 타임스탬프
-stamp = "20250826_164921"  # 예시 타임스탬프, 필요에 따라 변경
+stamp = "20250828_043717"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     gpath = f"runs/a3c_{stamp}/models/global_final.pth"
     if os.path.exists(gpath):
         print("Evaluating A3C Global Model with action logging...")
-        for env_idx, env_params in enumerate(env_param_list[:3]):  # 처음 3개 환경만
+        for env_idx, env_params in enumerate(env_param_list):  # 모든 환경
             print(f"  Environment {env_idx}...")
             evaluate_model_on_env(
                 gpath, 
@@ -281,11 +281,11 @@ if __name__ == "__main__":
         print(f"❌ A3C Global model not found: {gpath}")
     
     # Individual 모델들 평가 및 액션 로깅
-    for worker_id in range(min(2, n_workers)):  # 처음 2개 워커만
+    for worker_id in range(n_workers):  # 모든 워커
         mpath = f"runs/individual_{stamp}/models/individual_worker_{worker_id}_final.pth"
         if os.path.exists(mpath):
             print(f"Evaluating Individual Worker {worker_id} with action logging...")
-            for env_idx, env_params in enumerate(env_param_list[:3]):  # 처음 3개 환경만
+            for env_idx, env_params in enumerate(env_param_list):  # 모든 환경
                 print(f"  Environment {env_idx}...")
                 evaluate_model_on_env(
                     mpath,

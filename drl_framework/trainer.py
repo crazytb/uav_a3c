@@ -25,6 +25,7 @@ sample_obs = temp_env.reset()[0]
 state_dim = len(flatten_dict_values(sample_obs))
 action_dim = temp_env.action_space.n
 ROLL_OUT_LEN = 20
+tbtt_steps = ROLL_OUT_LEN
 
 @dataclass
 class EpisodeLog:
@@ -69,6 +70,94 @@ def _write_summary_csv(df: pd.DataFrame, label: str, out_csv_path: str, run_id: 
     epi_master.to_csv(
         MASTER_CSV, mode="a", header=write_header, index=False
     )
+
+# ---- 보조 함수: CSV -> 곡선 저장 ----
+def _plot_curves_from_csv(csv_path: str, out_prefix: str):
+    df = pd.read_csv(csv_path)
+    # 에피소드별 평균(여러 워커 평균)
+    epi = df.groupby("episode").agg(
+        reward=("reward","mean"),
+        length=("length","mean"),
+        policy_loss=("policy_loss","mean"),
+        value_loss=("value_loss","mean"),
+        entropy=("entropy","mean"),
+        total_loss=("total_loss","mean")
+    ).reset_index()
+
+    # Reward
+    plt.figure()
+    plt.plot(epi["episode"], epi["reward"])
+    plt.xlabel("Episode"); plt.ylabel("Avg Reward"); plt.title("Training Curve - Reward")
+    plt.tight_layout(); plt.savefig(out_prefix + "_reward.png", dpi=180); plt.close()
+
+    # Loss curves (존재하는 것만)
+    for k, ylabel in [("total_loss","Total Loss"),
+                      ("policy_loss","Policy Loss"),
+                      ("value_loss","Value Loss"),
+                      ("entropy","Entropy")]:
+        if k in epi.columns and epi[k].notna().any():
+            plt.figure()
+            plt.plot(epi["episode"], epi[k])
+            plt.xlabel("Episode"); plt.ylabel(ylabel); plt.title(f"Training Curve - {ylabel}")
+            plt.tight_layout(); plt.savefig(out_prefix + f"_{k}.png", dpi=180); plt.close()
+
+
+# ---- 멀티프로세싱 수집 루프(부모 프로세스에서 실행) ----
+def _collector_process(metrics_queue: mp.Queue, csv_path: str, worker_ps: list):
+    fieldnames = ["step","worker_id","episode","reward","length","policy_loss","value_loss","entropy","total_loss"]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+
+        alive = True
+        while alive or not metrics_queue.empty():
+            alive = any(p.is_alive() for p in worker_ps)
+            try:
+                item = metrics_queue.get(timeout=0.2)
+                # 누락 키 보정(없으면 None)
+                for k in fieldnames:
+                    item.setdefault(k, None)
+                writer.writerow(item)
+            except queue.Empty:
+                pass
+
+
+# ---- 스레드 기반 수집 루프(train_individual 용) ----
+def _collector_thread(metrics_queue: "queue.Queue", csv_path: str, stop_event: threading.Event):
+    fieldnames = ["step","worker_id","episode","reward","length","policy_loss","value_loss","entropy","total_loss"]
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+
+        while not (stop_event.is_set() and metrics_queue.empty()):
+            try:
+                item = metrics_queue.get(timeout=0.2)
+                for k in fieldnames:
+                    item.setdefault(k, None)
+                writer.writerow(item)
+            except queue.Empty:
+                pass
+
+# 새로 추가
+def _collector_thread_for_mp(metrics_queue, csv_path, any_alive_fn):
+    import csv, queue
+    fieldnames = ["step","worker_id","episode","reward","length","policy_loss","value_loss","entropy","total_loss"]
+    with open(csv_path, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        while any_alive_fn() or not metrics_queue.empty():
+            try:
+                item = metrics_queue.get(timeout=0.2)
+                for k in fieldnames: item.setdefault(k, None)
+                w.writerow(item)
+            except queue.Empty:
+                pass
+
+def detach_hidden(hx):
+    # GRU: Tensor, LSTM: (h, c)
+    if isinstance(hx, tuple):
+        return tuple(h.detach() for h in hx)
+    return hx.detach()
 
 class TrainingLogger:
     def __init__(self, log_dir: str):
@@ -187,6 +276,9 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
         done = False
         total_reward = 0.0
         episode_steps = 0
+        accum_policy_loss = 0.0
+        accum_value_loss = 0.0
+        accum_entropy = 0.0
 
         # --- (B) 에피소드 시작 시 hidden state 초기화 ---
         hx = working_model.init_hidden(batch_size=1, device=device)  # (L=1, B=1, H)
@@ -346,90 +438,6 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
             episode_barrier.wait()
             if worker_id == 0:
                 network_state.reset_for_new_episode()
-
-
-# ---- 보조 함수: CSV -> 곡선 저장 ----
-def _plot_curves_from_csv(csv_path: str, out_prefix: str):
-    df = pd.read_csv(csv_path)
-    # 에피소드별 평균(여러 워커 평균)
-    epi = df.groupby("episode").agg(
-        reward=("reward","mean"),
-        length=("length","mean"),
-        policy_loss=("policy_loss","mean"),
-        value_loss=("value_loss","mean"),
-        entropy=("entropy","mean"),
-        total_loss=("total_loss","mean")
-    ).reset_index()
-
-    # Reward
-    plt.figure()
-    plt.plot(epi["episode"], epi["reward"])
-    plt.xlabel("Episode"); plt.ylabel("Avg Reward"); plt.title("Training Curve - Reward")
-    plt.tight_layout(); plt.savefig(out_prefix + "_reward.png", dpi=180); plt.close()
-
-    # Loss curves (존재하는 것만)
-    for k, ylabel in [("total_loss","Total Loss"),
-                      ("policy_loss","Policy Loss"),
-                      ("value_loss","Value Loss"),
-                      ("entropy","Entropy")]:
-        if k in epi.columns and epi[k].notna().any():
-            plt.figure()
-            plt.plot(epi["episode"], epi[k])
-            plt.xlabel("Episode"); plt.ylabel(ylabel); plt.title(f"Training Curve - {ylabel}")
-            plt.tight_layout(); plt.savefig(out_prefix + f"_{k}.png", dpi=180); plt.close()
-
-
-# ---- 멀티프로세싱 수집 루프(부모 프로세스에서 실행) ----
-def _collector_process(metrics_queue: mp.Queue, csv_path: str, worker_ps: list):
-    fieldnames = ["step","worker_id","episode","reward","length","policy_loss","value_loss","entropy","total_loss"]
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-
-        alive = True
-        while alive or not metrics_queue.empty():
-            alive = any(p.is_alive() for p in worker_ps)
-            try:
-                item = metrics_queue.get(timeout=0.2)
-                # 누락 키 보정(없으면 None)
-                for k in fieldnames:
-                    item.setdefault(k, None)
-                writer.writerow(item)
-            except queue.Empty:
-                pass
-
-
-# ---- 스레드 기반 수집 루프(train_individual 용) ----
-def _collector_thread(metrics_queue: "queue.Queue", csv_path: str, stop_event: threading.Event):
-    fieldnames = ["step","worker_id","episode","reward","length","policy_loss","value_loss","entropy","total_loss"]
-    with open(csv_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-
-        while not (stop_event.is_set() and metrics_queue.empty()):
-            try:
-                item = metrics_queue.get(timeout=0.2)
-                for k in fieldnames:
-                    item.setdefault(k, None)
-                writer.writerow(item)
-            except queue.Empty:
-                pass
-
-# 새로 추가
-def _collector_thread_for_mp(metrics_queue, csv_path, any_alive_fn):
-    import csv, queue
-    fieldnames = ["step","worker_id","episode","reward","length","policy_loss","value_loss","entropy","total_loss"]
-    with open(csv_path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
-        w.writeheader()
-        while any_alive_fn() or not metrics_queue.empty():
-            try:
-                item = metrics_queue.get(timeout=0.2)
-                for k in fieldnames: item.setdefault(k, None)
-                w.writerow(item)
-            except queue.Empty:
-                pass
-
 
 # ==========================
 # 수정된 train()
