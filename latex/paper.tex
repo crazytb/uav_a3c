@@ -56,7 +56,11 @@ UAV, Task Offloading, A3C, Deep Reinforcement Learning, Multi-Agent Systems, Edg
 
 The proliferation of Unmanned Aerial Vehicles (UAVs) in various applications has created new opportunities for distributed computing and task offloading in edge computing environments. As UAV swarms become increasingly sophisticated, the challenge of optimizing computational task distribution among multiple agents becomes critical for system performance and energy efficiency.
 
-Reinforcement Learning (RL), particularly deep reinforcement learning approaches, has emerged as a promising solution for addressing the complex decision-making challenges in multi-UAV systems. Among various RL algorithms, Asynchronous Advantage Actor-Critic (A3C) has shown significant potential due to its ability to handle continuous action spaces and its inherent parallelization capabilities.
+Modern UAV systems are required to process computationally intensive tasks such as real-time image processing, path planning, and sensor data analysis while operating under strict energy and latency constraints. The limited computational resources onboard individual UAVs necessitate intelligent task offloading strategies that can dynamically distribute workloads across the network, including mobile edge computing (MEC) servers and cloud infrastructure.
+
+Reinforcement Learning (RL), particularly deep reinforcement learning approaches, has emerged as a promising solution for addressing the complex decision-making challenges in multi-UAV systems. Among various RL algorithms, Asynchronous Advantage Actor-Critic (A3C) has shown significant potential due to its ability to handle continuous action spaces and its inherent parallelization capabilities. The asynchronous nature of A3C allows multiple agents to learn simultaneously, making it particularly suitable for distributed UAV scenarios where coordination and communication constraints exist.
+
+However, a fundamental question remains regarding the optimal training strategy for A3C in multi-UAV environments: should the system employ a centralized approach with a shared global model, or would decentralized training with individual worker specialization yield superior performance? This question becomes even more critical when considering the heterogeneous nature of operational environments that UAV systems encounter.
 
 This paper investigates two fundamental training strategies for A3C-based multi-UAV task offloading: (1) centralized training using a global model shared across all workers, and (2) decentralized training where individual workers develop specialized policies. Through comprehensive experimental evaluation across multiple environmental configurations, we analyze the performance characteristics, convergence properties, and generalization capabilities of each approach.
 
@@ -86,23 +90,73 @@ The main contributions of this work include:
 \label{sec:methodology}
 
 \subsection{Problem Formulation}
-% Content to be added
+
+The multi-UAV task offloading problem is formulated as a sequential decision-making process where each UAV agent must choose from three possible actions for incoming computational tasks: (1) local processing, (2) offloading to mobile edge computing (MEC) servers, or (3) task discard. The objective is to maximize the cumulative reward while minimizing energy consumption and processing delays.
+
+The state space includes:
+\begin{itemize}
+\item Available computation units (normalized)
+\item Remaining epochs for task completion
+\item MEC server computation units and processing times
+\item Queue status (computation units and processing times)
+\item Success indicators for local and offload operations
+\item Context features (agent velocity and computation capacity)
+\end{itemize}
+
+The action space consists of discrete actions: $A = \{0, 1, 2\}$ representing LOCAL, OFFLOAD, and DISCARD respectively.
+
+The reward function incorporates multiple factors including energy costs, processing delays, and failure penalties:
+
+\begin{equation}
+R = -\alpha \cdot E_{local} - \beta \cdot T_{offload} - \gamma \cdot D_{transmission} + \text{rewards} - \text{penalties}
+\end{equation}
+
+where $\alpha$, $\beta$, and $\gamma$ are weighting coefficients for local processing energy cost, offload time cost, and transmission delay respectively.
 
 \subsection{A3C Architecture}
-The A3C architecture employed in this study consists of both feedforward and recurrent neural network configurations. The actor-critic framework utilizes separate networks for policy (actor) and value function (critic) estimation.
+
+The A3C implementation employs both feedforward and recurrent neural network configurations to handle the sequential nature of the task offloading decisions.
 
 \subsubsection{Network Architecture}
-% Content to be added
+
+The actor-critic architecture consists of:
+\begin{itemize}
+\item \textbf{Actor Network}: Outputs action probabilities using a softmax policy
+\item \textbf{Critic Network}: Estimates state values for advantage calculation
+\item \textbf{Hidden Layers}: 128 neurons with ReLU activation functions
+\item \textbf{Recurrent Component}: GRU layers for sequence modeling (when enabled)
+\end{itemize}
+
+For the recurrent variant (RecurrentActorCritic), the network processes sequences of observations through GRU layers before the final actor and critic heads, enabling the model to maintain memory of past decisions and environmental states.
 
 \subsubsection{Training Strategies}
+
 We evaluate two distinct training paradigms:
 
-\textbf{A3C Global Training:} A centralized approach where all workers share updates to a single global model. This strategy promotes knowledge sharing across different environmental conditions and worker experiences.
+\textbf{A3C Global Training:} In this centralized approach, all workers share updates to a single global model. Each worker interacts with its assigned environment and computes gradients based on the advantage actor-critic loss:
 
-\textbf{Individual Worker Training:} A decentralized approach where each worker develops its own specialized policy independently. This allows for environment-specific adaptation but may limit knowledge transfer.
+\begin{equation}
+L = L_{policy} + \beta \cdot L_{value} - \alpha \cdot H(\pi)
+\end{equation}
+
+where $L_{policy}$ is the policy loss, $L_{value}$ is the value function loss, and $H(\pi)$ is the policy entropy term for exploration.
+
+The global model aggregates updates from all workers asynchronously, promoting knowledge sharing across different environmental conditions and worker experiences.
+
+\textbf{Individual Worker Training:} In this decentralized approach, each worker develops its own specialized policy independently. Workers train separate neural networks without sharing parameters, allowing for environment-specific adaptation and specialized behavior development.
 
 \subsection{Environment Configuration}
-% Content to be added based on custom_env.py parameters
+
+The experimental framework utilizes a custom UAV environment with the following key parameters:
+\begin{itemize}
+\item Maximum computation units: 200
+\item Maximum computation units for cloud: 1000
+\item Maximum epoch size: 100
+\item Maximum queue size: 20
+\item Agent velocities: 50 units
+\end{itemize}
+
+Five distinct environmental configurations are evaluated, each representing different operational scenarios with varying computational demands, network conditions, and resource availability patterns.
 
 \subsection{Performance Metrics}
 Our evaluation framework includes the following key metrics:
