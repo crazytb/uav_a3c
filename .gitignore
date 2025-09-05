@@ -5,3 +5,6 @@
 logs/
 tensorboard/
 runs/
+
+# Allow CSV files in the root directory
+!/*.csv
