@@ -1,54 +1,62 @@
 \documentclass[journal]{IEEEtran}
+% \documentclass[lettersize,journal]{IEEEtran}
 
-% Packages for enhanced functionality
-\usepackage[utf8]{inputenc}
-\usepackage{amsmath,amsfonts,amssymb}
-\usepackage{graphicx}
+% Fix font issues
+\renewcommand{\rmdefault}{cmr}
+\renewcommand{\sfdefault}{cmss}
+\renewcommand{\ttdefault}{cmtt}
+
 \usepackage{cite}
-\usepackage{url}
-\usepackage{booktabs}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}% http://ctan.org/pkg/algorithms
+\usepackage{algpseudocode}% http://ctan.org/pkg/algorithmicx
+\usepackage{graphicx}
 \usepackage{array}
+\usepackage{textcomp}
+\usepackage{bigstrut}
+\usepackage{numprint}
 \usepackage{multirow}
-\usepackage{algorithm}
-\usepackage{algorithmic}
-\usepackage{color}
+\usepackage{stfloats}
+\usepackage{url}
+\usepackage{verbatim}
+\usepackage{makecell}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[multiple]{footmisc}
 \usepackage{subcaption}
 
-% For better handling of figures and tables
-\usepackage{float}
-\usepackage{caption}
-
-% Define colors for highlighting (if needed)
-\definecolor{darkgreen}{rgb}{0,0.6,0}
-\definecolor{darkred}{rgb}{0.8,0,0}
+\newfloat{algorithm}{t}{lop}
+\newcommand{\St}{{\mathchoice{}{}{\scriptscriptstyle}{}S}}
+\newcommand{\Ac}{{\mathchoice{}{}{\scriptscriptstyle}{}A}}
 
 % Begin document
 \begin{document}
 
-% Paper title
 \title{Comparative Analysis of A3C Global vs Individual Training Strategies for Multi-UAV Task Offloading Optimization}
 
-% Author information
-\author{%
-\IEEEauthorblockN{Author Name}%
-\IEEEauthorblockA{Department of Computer Science\\
-University Name\\
-City, State, Country\\
-Email: author@university.edu}
+\author{Taewon Song and Taeyoon Kim
+\thanks{T. Song is with the Department of Internet of Things, SCH \mbox{MediaLabs}, Soonchunhyang University, 22 Soonchunhyang-ro, Shinchang-myeon, Asan-si, Chungcheongnam-do, 31538, Korea (e-mail: twsong@sch.ac.kr) and T. Kim is with the Department of Computer Science, Korea University, Seoul, Korea (e-mail: taeyoonkim@korea.ac.kr), Corresponding author: T. Song.}% <-this % stops a space
+
+\thanks{This work was supported in part by the National Research Foundation of Korea (NRF) grant funded by the Korea government (MSIT) (No. 2022R1F1A1076069), and in part by ``Regional Innovation Strategy (RIS)'' through the National Research Foundation of Korea (NRF) funded by the Ministry of Education (MOE) (2021RIS-004), and in part by the Soonchunhyang University Research Fund.}
+% \thanks{Manuscript received XXX, XX, 2015; revised XXX, XX, 2015.}
 }
 
-% Make the title area
+% \markboth{IEEE Transactions on Vehicular Technology,~Vol.~XX, No.~XX, XXX~2015}
+{}
+%{Shell \MakeLowercase{\textit{et al.}}: Bare Demo of IEEEtran.cls for Journals}
+
 \maketitle
 
-% Abstract
 \begin{abstract}
 This paper presents a comprehensive performance analysis of Asynchronous Advantage Actor-Critic (A3C) training strategies for multi-UAV task offloading optimization in edge computing environments. We compare two distinct training paradigms: A3C global model training versus individual worker training across multiple heterogeneous environments. Our experimental framework evaluates performance metrics including reward distribution, convergence characteristics, and cross-environment generalization capabilities. Through statistical analysis of episode-level performance data, we demonstrate the effectiveness of different training approaches under varying environmental conditions. The results provide insights into optimal training strategies for distributed UAV systems and highlight the trade-offs between centralized and decentralized learning approaches in multi-agent reinforcement learning scenarios.
 \end{abstract}
 
-% Keywords
+
 \begin{IEEEkeywords}
 UAV, Task Offloading, A3C, Deep Reinforcement Learning, Multi-Agent Systems, Edge Computing
 \end{IEEEkeywords}
+
+
+\IEEEpeerreviewmaketitle
 
 % Introduction
 \section{Introduction}
@@ -64,26 +72,60 @@ However, a fundamental question remains regarding the optimal training strategy 
 
 This paper investigates two fundamental training strategies for A3C-based multi-UAV task offloading: (1) centralized training using a global model shared across all workers, and (2) decentralized training where individual workers develop specialized policies. Through comprehensive experimental evaluation across multiple environmental configurations, we analyze the performance characteristics, convergence properties, and generalization capabilities of each approach.
 
-The main contributions of this work include:
+To sum up, the contributions of this paper are fourfold: 
 \begin{itemize}
-\item Comprehensive performance comparison between A3C global and individual training strategies
-\item Statistical analysis of reward distributions and convergence characteristics across multiple environments
-\item Evaluation framework for cross-environment generalization in multi-UAV systems
-\item Insights into optimal training paradigms for different operational scenarios
+    \item We present a comprehensive performance comparison between A3C global and individual training strategies for multi-UAV task offloading optimization, providing the first systematic evaluation of these training paradigms in UAV-assisted edge computing environments.
+    \item We conduct rigorous statistical analysis of reward distributions and convergence characteristics across multiple heterogeneous environments, demonstrating significant performance differences between training approaches.
+    \item We develop an evaluation framework for cross-environment generalization in multi-UAV systems, enabling assessment of training strategy effectiveness across diverse operational scenarios.
+    \item We provide practical insights into optimal training paradigms for different operational scenarios, offering guidelines for UAV system deployment in varying environmental conditions.
 \end{itemize}
 
-% Related Work
-\section{Related Work}
+The remainder of this paper is organized as follows. Section~\ref{sec:related_work} offers a comprehensive review of relevant studies in UAV task offloading and multi-agent reinforcement learning. We describe the system model and problem formulation in Section~\ref{sec:methodology}. The experimental setup and implementation details are presented in Section~\ref{sec:experimental_setup}. Performance evaluation results are given in Section~\ref{sec:results}, followed by discussion in Section~\ref{sec:discussion} and conclusion in Section~\ref{sec:conclusion}.
+
+\section{Related Works}
 \label{sec:related_work}
 
-\subsection{UAV Task Offloading}
-% Content to be added
+The intersection of UAV-assisted mobile edge computing and deep reinforcement learning has emerged as a critical research area, with various approaches addressing the challenges of distributed task offloading optimization. This section reviews existing work across three key themes: deep reinforcement learning approaches for UAV task offloading, multi-agent coordination strategies, and federated learning frameworks.
 
-\subsection{Multi-Agent Reinforcement Learning}
-% Content to be added
+\subsection{Deep Reinforcement Learning for UAV Task Offloading}
 
-\subsection{A3C in Distributed Systems}
-% Content to be added
+Recent advances in deep reinforcement learning have shown significant promise for addressing the complex decision-making challenges in UAV-assisted mobile edge computing environments. Traditional optimization approaches often struggle with the dynamic and uncertain nature of wireless channels, computational demands, and energy constraints.
+
+Song \cite{song2024drqn} addresses the challenge of hidden channel conditions in UAV-assisted MEC systems by proposing PORTO-MEC, a Deep Recurrent Q-Network (DRQN) based algorithm. The work formulates the problem as a Partially Observable Markov Decision Process (POMDP), where UAVs must make task offloading decisions without complete information about channel states between UAVs and cloud servers. The DRQN approach leverages temporal dependencies in the environment to make informed decisions under uncertainty, achieving 58.82\% higher rewards compared to traditional DQN approaches, 92.39\% improvement over local-only processing, and 213.51\% improvement over offload-only strategies. However, this work focuses on single-agent scenarios and does not address multi-UAV coordination challenges.
+
+Wang et al. \cite{wang2020deep} and Liu et al. \cite{liu2020multi} have explored various deep reinforcement learning approaches for UAV-enabled wireless communications and collaborative task offloading. These works demonstrate the effectiveness of DRL methods in handling dynamic environments but primarily focus on individual UAV optimization or simplified multi-UAV scenarios without systematic comparison of training strategies.
+
+\subsection{Multi-Agent Deep Reinforcement Learning Approaches}
+
+The complexity of multi-UAV systems necessitates sophisticated coordination mechanisms that can handle the distributed nature of the problem while ensuring efficient resource utilization and performance optimization.
+
+Zhao et al. \cite{zhao2022multiagent} propose a comprehensive multi-agent deep reinforcement learning framework for task offloading in UAV-assisted mobile edge computing systems. Their approach, named MATD3 (Multi-Agent Twin Delayed Deep Deterministic Policy Gradient), addresses the joint optimization of UAV trajectories, computation task allocation, and communication resource management. The framework formulates the problem as a multi-agent Markov Decision Process and employs a cooperative MADRL approach to handle high-dimensional continuous action spaces. The system demonstrates superior performance compared to traditional optimization approaches, particularly in terms of adaptability to UEs' mobility, robustness to resource changes, and flexibility to dynamic computation demands.
+
+The MATD3 framework adopts a centralized training with decentralized execution strategy, where evaluation critic networks obtain global views during training while individual UAVs execute policies based on local observations during deployment. This approach achieves significant improvements in total system cost reduction while maintaining scalability across different numbers of UAVs and user equipment. However, the work does not systematically compare different training paradigms or investigate the trade-offs between centralized and fully decentralized learning approaches.
+
+Foerster et al. \cite{foerster2018counterfactual} and Gupta et al. \cite{gupta2017cooperative} have established foundational work in cooperative multi-agent reinforcement learning, providing theoretical frameworks that have influenced subsequent UAV coordination research. However, these approaches have not been specifically evaluated for UAV task offloading scenarios or compared across different training strategies.
+
+\subsection{Federated Learning and Decentralized Training}
+
+The challenge of data privacy, communication overhead, and training efficiency in distributed systems has led to the exploration of federated learning approaches in edge computing environments.
+
+Wang et al. \cite{wang2020federated} introduce FADE (Federated Deep reinforcement learning-based cooperative edge caching), a framework that enables base stations to cooperatively learn shared predictive models while keeping training data localized on individual IoT devices. The approach uses Double Deep Q-Network (DDQN) as the underlying reinforcement learning algorithm and demonstrates 92\% loss reduction in the first 100 training steps compared to centralized approaches, along with 60\% improvement in system payment efficiency. The framework addresses privacy concerns and communication overhead by sharing only model parameters rather than raw data.
+
+While FADE focuses on edge caching rather than computation task offloading, it provides valuable insights into the benefits and challenges of federated learning in distributed edge computing scenarios. The work demonstrates that decentralized training can achieve comparable or superior performance to centralized approaches while addressing practical deployment constraints.
+
+\subsection{Research Gaps and Motivation}
+
+Despite the significant progress in UAV-assisted mobile edge computing and deep reinforcement learning, several critical research gaps remain:
+
+\textbf{Training Strategy Comparison:} Existing work has not systematically compared global versus individual training strategies for A3C in multi-UAV environments. While Zhao et al. \cite{zhao2022multiagent} demonstrate the effectiveness of centralized training with decentralized execution, and Wang et al. \cite{wang2020federated} show benefits of federated learning for edge caching, there lacks a comprehensive analysis of pure centralized versus fully decentralized training paradigms specifically for task offloading optimization.
+
+\textbf{A3C Algorithm Exploration:} Limited research has explored the potential of Asynchronous Advantage Actor-Critic (A3C) algorithms for multi-UAV task offloading, despite A3C's inherent advantages in parallel learning and policy gradient methods. Most existing work focuses on DQN variants \cite{song2024drqn} or actor-critic methods like TD3 \cite{zhao2022multiagent}, leaving A3C's performance characteristics unexplored in this domain.
+
+\textbf{Cross-Environment Generalization:} Current approaches primarily evaluate performance within specific environmental configurations without systematic analysis of generalization capabilities across diverse operational scenarios. This limits the practical applicability of trained models in real-world deployments where UAVs encounter varying environmental conditions.
+
+\textbf{Statistical Rigor:} Many existing studies lack comprehensive statistical analysis of performance differences between training approaches, making it difficult to draw definitive conclusions about optimal strategies for different scenarios.
+
+This work addresses these gaps by providing a systematic comparison of A3C global versus individual training strategies, comprehensive statistical analysis across multiple environmental configurations, and evaluation of cross-environment generalization capabilities in multi-UAV task offloading scenarios.
 
 % Methodology
 \section{Methodology}
@@ -210,10 +252,6 @@ Five distinct environmental configurations were evaluated, each representing dif
 \label{sec:conclusion}
 
 % Conclusion and future work
-
-% Acknowledgments
-\section*{Acknowledgment}
-The authors would like to thank...
 
 % References
 \bibliographystyle{IEEEtran}
