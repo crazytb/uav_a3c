@@ -38,7 +38,7 @@ REWARD_PARAMS = {
     'GAMMA': 2.0,               # 전송 지연 계수
     'REWARD_SCALE': 1.0,     # 보상 배율
     'FAILURE_PENALTY': 2.0,    # 실패 시 패널티
-    'ENERGY_COST_COEFF': 1.0,
+    'ENERGY_COST_COEFF': 10.0,
     'CONGESTION_COST_COEFF': 0.1
 }
 

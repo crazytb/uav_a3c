@@ -1,0 +1,168 @@
+\documentclass[journal]{IEEEtran}
+
+% Packages for enhanced functionality
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{graphicx}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{color}
+\usepackage{subcaption}
+
+% For better handling of figures and tables
+\usepackage{float}
+\usepackage{caption}
+
+% Define colors for highlighting (if needed)
+\definecolor{darkgreen}{rgb}{0,0.6,0}
+\definecolor{darkred}{rgb}{0.8,0,0}
+
+% Begin document
+\begin{document}
+
+% Paper title
+\title{Comparative Analysis of A3C Global vs Individual Training Strategies for Multi-UAV Task Offloading Optimization}
+
+% Author information
+\author{%
+\IEEEauthorblockN{Author Name}%
+\IEEEauthorblockA{Department of Computer Science\\
+University Name\\
+City, State, Country\\
+Email: author@university.edu}
+}
+
+% Make the title area
+\maketitle
+
+% Abstract
+\begin{abstract}
+This paper presents a comprehensive performance analysis of Asynchronous Advantage Actor-Critic (A3C) training strategies for multi-UAV task offloading optimization in edge computing environments. We compare two distinct training paradigms: A3C global model training versus individual worker training across multiple heterogeneous environments. Our experimental framework evaluates performance metrics including reward distribution, convergence characteristics, and cross-environment generalization capabilities. Through statistical analysis of episode-level performance data, we demonstrate the effectiveness of different training approaches under varying environmental conditions. The results provide insights into optimal training strategies for distributed UAV systems and highlight the trade-offs between centralized and decentralized learning approaches in multi-agent reinforcement learning scenarios.
+\end{abstract}
+
+% Keywords
+\begin{IEEEkeywords}
+UAV, Task Offloading, A3C, Deep Reinforcement Learning, Multi-Agent Systems, Edge Computing
+\end{IEEEkeywords}
+
+% Introduction
+\section{Introduction}
+\label{sec:introduction}
+
+The proliferation of Unmanned Aerial Vehicles (UAVs) in various applications has created new opportunities for distributed computing and task offloading in edge computing environments. As UAV swarms become increasingly sophisticated, the challenge of optimizing computational task distribution among multiple agents becomes critical for system performance and energy efficiency.
+
+Reinforcement Learning (RL), particularly deep reinforcement learning approaches, has emerged as a promising solution for addressing the complex decision-making challenges in multi-UAV systems. Among various RL algorithms, Asynchronous Advantage Actor-Critic (A3C) has shown significant potential due to its ability to handle continuous action spaces and its inherent parallelization capabilities.
+
+This paper investigates two fundamental training strategies for A3C-based multi-UAV task offloading: (1) centralized training using a global model shared across all workers, and (2) decentralized training where individual workers develop specialized policies. Through comprehensive experimental evaluation across multiple environmental configurations, we analyze the performance characteristics, convergence properties, and generalization capabilities of each approach.
+
+The main contributions of this work include:
+\begin{itemize}
+\item Comprehensive performance comparison between A3C global and individual training strategies
+\item Statistical analysis of reward distributions and convergence characteristics across multiple environments
+\item Evaluation framework for cross-environment generalization in multi-UAV systems
+\item Insights into optimal training paradigms for different operational scenarios
+\end{itemize}
+
+% Related Work
+\section{Related Work}
+\label{sec:related_work}
+
+\subsection{UAV Task Offloading}
+% Content to be added
+
+\subsection{Multi-Agent Reinforcement Learning}
+% Content to be added
+
+\subsection{A3C in Distributed Systems}
+% Content to be added
+
+% Methodology
+\section{Methodology}
+\label{sec:methodology}
+
+\subsection{Problem Formulation}
+% Content to be added
+
+\subsection{A3C Architecture}
+The A3C architecture employed in this study consists of both feedforward and recurrent neural network configurations. The actor-critic framework utilizes separate networks for policy (actor) and value function (critic) estimation.
+
+\subsubsection{Network Architecture}
+% Content to be added
+
+\subsubsection{Training Strategies}
+We evaluate two distinct training paradigms:
+
+\textbf{A3C Global Training:} A centralized approach where all workers share updates to a single global model. This strategy promotes knowledge sharing across different environmental conditions and worker experiences.
+
+\textbf{Individual Worker Training:} A decentralized approach where each worker develops its own specialized policy independently. This allows for environment-specific adaptation but may limit knowledge transfer.
+
+\subsection{Environment Configuration}
+% Content to be added based on custom_env.py parameters
+
+\subsection{Performance Metrics}
+Our evaluation framework includes the following key metrics:
+\begin{itemize}
+\item Episode-level total rewards
+\item Convergence characteristics across training episodes
+\item Statistical significance of performance differences
+\item Cross-environment generalization performance
+\end{itemize}
+
+% Experimental Setup
+\section{Experimental Setup}
+\label{sec:experimental_setup}
+
+\subsection{Implementation Details}
+% Implementation details from params.py
+
+\subsection{Environment Configurations}
+Five distinct environmental configurations were evaluated, each representing different operational scenarios with varying computational demands and network conditions.
+
+\subsection{Training Parameters}
+% Training parameters from the codebase
+
+% Results and Analysis
+\section{Results and Analysis}
+\label{sec:results}
+
+\subsection{Performance Comparison}
+% Analysis based on environment_comparison results
+
+\subsection{Episode-level Analysis}
+% Analysis based on episode_curves results
+
+\subsection{Distribution Analysis}
+% Analysis based on distribution_analysis results
+
+\subsection{Cross-Environment Performance}
+% Analysis based on performance_heatmap results
+
+\subsection{Statistical Significance}
+% Statistical analysis results
+
+% Discussion
+\section{Discussion}
+\label{sec:discussion}
+
+% Discussion of results, implications, limitations
+
+% Conclusion
+\section{Conclusion}
+\label{sec:conclusion}
+
+% Conclusion and future work
+
+% Acknowledgments
+\section*{Acknowledgment}
+The authors would like to thank...
+
+% References
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

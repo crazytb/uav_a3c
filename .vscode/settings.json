@@ -1,0 +1,83 @@
+{
+    // LaTeX Workshop 설정
+    "latex-workshop.latex.tools": [
+        {
+            "name": "pdflatex",
+            "command": "pdflatex",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "%DOCFILE%"
+            ]
+        },
+        {
+            "name": "bibtex",
+            "command": "bibtex",
+            "args": [
+                "%DOCFILE%"
+            ]
+        }
+    ],
+    
+    "latex-workshop.latex.recipes": [
+        {
+            "name": "pdflatex → bibtex → pdflatex × 2",
+            "tools": [
+                "pdflatex",
+                "bibtex",
+                "pdflatex",
+                "pdflatex"
+            ]
+        },
+        {
+            "name": "pdflatex",
+            "tools": [
+                "pdflatex"
+            ]
+        }
+    ],
+    
+    // 자동 빌드 설정
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    
+    // PDF 뷰어 설정
+    "latex-workshop.view.pdf.viewer": "tab",
+    
+    // 자동 정리
+    "latex-workshop.latex.autoClean.run": "onBuilt",
+    "latex-workshop.latex.clean.fileTypes": [
+        "*.aux",
+        "*.bbl",
+        "*.blg",
+        "*.idx",
+        "*.ind",
+        "*.lof",
+        "*.lot",
+        "*.out",
+        "*.toc",
+        "*.acn",
+        "*.acr",
+        "*.alg",
+        "*.glg",
+        "*.glo",
+        "*.gls",
+        "*.ist",
+        "*.fls",
+        "*.log",
+        "*.fdb_latexmk",
+        "*.synctex.gz"
+    ],
+    
+    // 에러 처리
+    "latex-workshop.message.error.show": true,
+    "latex-workshop.message.warning.show": true,
+    
+    // IntelliSense 설정
+    "latex-workshop.intellisense.package.enabled": true,
+    "latex-workshop.intellisense.unimathsymbols.enabled": true,
+    
+    // 자동 저장 설정
+    "files.autoSave": "afterDelay",
+    "files.autoSaveDelay": 1000
+}
