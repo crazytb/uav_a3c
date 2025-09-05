@@ -31,12 +31,12 @@
 % Begin document
 \begin{document}
 
-\title{Comparative Analysis of A3C Global vs Individual Training Strategies for Multi-UAV Task Offloading Optimization}
+\title{MATOFF-A3C: Multi-Agent Task Offloading with Shared Global Model Training for UAV Edge Computing}
 
 \author{Taewon Song and Taeyoon Kim
-\thanks{T. Song is with the Department of Internet of Things, SCH \mbox{MediaLabs}, Soonchunhyang University, 22 Soonchunhyang-ro, Shinchang-myeon, Asan-si, Chungcheongnam-do, 31538, Korea (e-mail: twsong@sch.ac.kr) and T. Kim is with the Department of Computer Science, Korea University, Seoul, Korea (e-mail: taeyoonkim@korea.ac.kr), Corresponding author: T. Song.}% <-this % stops a space
+\thanks{T. Song is with the Department of Internet of Things, College of SW Convergence, Soonchunhyang University, 22 Soonchunhyang-ro, Shinchang-myeon, Asan-si, Chungcheongnam-do, 31538, Korea (e-mail: twsong@sch.ac.kr) and T. Kim is with ... (e-mail: 2000kty@dankook.ac.kr), Corresponding author: T. Kim.}% <-this % stops a space
 
-\thanks{This work was supported in part by the National Research Foundation of Korea (NRF) grant funded by the Korea government (MSIT) (No. 2022R1F1A1076069), and in part by ``Regional Innovation Strategy (RIS)'' through the National Research Foundation of Korea (NRF) funded by the Ministry of Education (MOE) (2021RIS-004), and in part by the Soonchunhyang University Research Fund.}
+\thanks{This work was supported in part by ..., and in part by ..., and in part by ...}
 % \thanks{Manuscript received XXX, XX, 2015; revised XXX, XX, 2015.}
 }
 
@@ -47,7 +47,7 @@
 \maketitle
 
 \begin{abstract}
-This paper presents a comprehensive performance analysis of Asynchronous Advantage Actor-Critic (A3C) training strategies for multi-UAV task offloading optimization in edge computing environments. We compare two distinct training paradigms: A3C global model training versus individual worker training across multiple heterogeneous environments. Our experimental framework evaluates performance metrics including reward distribution, convergence characteristics, and cross-environment generalization capabilities. Through statistical analysis of episode-level performance data, we demonstrate the effectiveness of different training approaches under varying environmental conditions. The results provide insights into optimal training strategies for distributed UAV systems and highlight the trade-offs between centralized and decentralized learning approaches in multi-agent reinforcement learning scenarios.
+Multi-UAV task offloading optimization in edge computing environments represents a critical challenge for enabling efficient distributed computation, as UAV swarms must make coordinated decisions under dynamic network conditions, limited computational resources, and stringent latency constraints. This paper presents MATOFF-A3C, a multi-agent framework that employs shared global model training through Asynchronous Advantage Actor-Critic algorithms to optimize task offloading decisions across distributed UAV networks. The methodology formulates the problem as a multi-agent Markov Decision Process where several UAV workers operating in heterogeneous environments contribute learning experiences to a centralized global model, enabling coordinated decision-making for local processing, MEC server offloading, or task discard actions. Experimental evaluation demonstrates that the shared global model achieves superior reward distribution and convergence characteristics compared to individual worker training, with statistical analysis revealing significant performance improvements across diverse operational scenarios. Cross-environment generalization experiments show enhanced knowledge transfer capabilities, where the global model maintains robust performance when deployed in previously unseen environmental configurations. These findings provide essential insights for designing scalable multi-UAV systems and demonstrate the effectiveness of centralized learning approaches for distributed edge computing applications.
 \end{abstract}
 
 
