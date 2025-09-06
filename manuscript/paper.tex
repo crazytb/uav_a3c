@@ -31,7 +31,7 @@
 % Begin document
 \begin{document}
 
-\title{MATOFF-A3C: Multi-Agent Task Offloading with Shared Global Model Training for UAV Edge Computing}
+\title{ATLAS: Adaptive Task Learning Allocation System for UAV Task Offloading in Edge Computing}
 
 \author{Taewon Song and Taeyoon Kim
 \thanks{T. Song is with the Department of Internet of Things, College of SW Convergence, Soonchunhyang University, 22 Soonchunhyang-ro, Shinchang-myeon, Asan-si, Chungcheongnam-do, 31538, Korea (e-mail: twsong@sch.ac.kr) and T. Kim is with ... (e-mail: 2000kty@dankook.ac.kr), Corresponding author: T. Kim.}% <-this % stops a space
@@ -47,7 +47,7 @@
 \maketitle
 
 \begin{abstract}
-Multi-UAV task offloading optimization in edge computing environments represents a critical challenge for enabling efficient distributed computation, as UAV swarms must make coordinated decisions under dynamic network conditions, limited computational resources, and stringent latency constraints. This paper presents MATOFF-A3C, a multi-agent framework that employs shared global model training through Asynchronous Advantage Actor-Critic algorithms to optimize task offloading decisions across distributed UAV networks. The methodology formulates the problem as a multi-agent Markov Decision Process where several UAV workers operating in heterogeneous environments contribute learning experiences to a centralized global model, enabling coordinated decision-making for local processing, MEC server offloading, or task discard actions. Experimental evaluation demonstrates that the shared global model achieves superior reward distribution and convergence characteristics compared to individual worker training, with statistical analysis revealing significant performance improvements across diverse operational scenarios. Cross-environment generalization experiments show enhanced knowledge transfer capabilities, where the global model maintains robust performance when deployed in previously unseen environmental configurations. These findings provide essential insights for designing scalable multi-UAV systems and demonstrate the effectiveness of centralized learning approaches for distributed edge computing applications.
+Multi-UAV task offloading optimization in edge computing environments represents a critical challenge for enabling efficient distributed computation, as UAV swarms must make coordinated decisions under dynamic network conditions, limited computational resources, and stringent latency constraints. This paper presents ATLAS (Adaptive Task Learning Allocation System), a universal framework that employs shared global model training through Asynchronous Advantage Actor-Critic algorithms to optimize task offloading decisions across distributed UAV networks. The methodology formulates the problem as a multi-agent Markov Decision Process where several UAV workers operating in heterogeneous environments contribute learning experiences to a centralized global model, enabling coordinated decision-making for local processing, MEC server offloading, or task discard actions. Experimental evaluation demonstrates that the shared global model achieves superior reward distribution and convergence characteristics compared to individual worker training, with statistical analysis revealing significant performance improvements across diverse operational scenarios. Cross-environment generalization experiments show enhanced knowledge transfer capabilities, where the global model maintains robust performance when deployed in previously unseen environmental configurations. These findings provide essential insights for designing scalable multi-UAV systems and demonstrate the effectiveness of centralized learning approaches for distributed edge computing applications.
 \end{abstract}
 
 
@@ -80,7 +80,7 @@ To sum up, the contributions of this paper are fourfold:
     \item We provide practical insights into optimal training paradigms for different operational scenarios, offering guidelines for UAV system deployment in varying environmental conditions.
 \end{itemize}
 
-The remainder of this paper is organized as follows. Section~\ref{sec:related_work} offers a comprehensive review of relevant studies in UAV task offloading and multi-agent reinforcement learning. We describe the system model and problem formulation in Section~\ref{sec:methodology}. The experimental setup and implementation details are presented in Section~\ref{sec:experimental_setup}. Performance evaluation results are given in Section~\ref{sec:results}, followed by discussion in Section~\ref{sec:discussion} and conclusion in Section~\ref{sec:conclusion}.
+The remainder of this paper is organized as follows. Section~\ref{sec:related_work} offers a comprehensive review of relevant studies in UAV task offloading and multi-agent reinforcement learning. We describe the system model and problem formulation in Section~\ref{sec:POMDP}. The experimental setup and implementation details are presented in Section~\ref{sec:experimental_setup}. Performance evaluation results are given in Section~\ref{sec:results}, followed by discussion in Section~\ref{sec:discussion} and conclusion in Section~\ref{sec:conclusion}.
 
 \section{Related Works}
 \label{sec:related_work}
@@ -127,33 +127,208 @@ Despite the significant progress in UAV-assisted mobile edge computing and deep 
 
 This work addresses these gaps by providing a systematic comparison of A3C global versus individual training strategies, comprehensive statistical analysis across multiple environmental configurations, and evaluation of cross-environment generalization capabilities in multi-UAV task offloading scenarios.
 
-% Methodology
-\section{Methodology}
-\label{sec:methodology}
+% POMDP Formulation
+\section{POMDP Formulation}
+\label{sec:POMDP}
 
 \subsection{Problem Formulation}
 
-The multi-UAV task offloading problem is formulated as a sequential decision-making process where each UAV agent must choose from three possible actions for incoming computational tasks: (1) local processing, (2) offloading to mobile edge computing (MEC) servers, or (3) task discard. The objective is to maximize the cumulative reward while minimizing energy consumption and processing delays.
+We formulate the multi-UAV task offloading optimization problem as a Partially Observable Markov Decision Process (POMDP), where each UAV agent operates as an intelligent decision maker in a dynamic edge computing environment. The POMDP framework enables UAV agents to make sequential decisions for incoming computational tasks while adapting to changing environmental conditions and resource availability. Furthermore, the POMDP formulation captures the inherent uncertainty in UAV operations, such as fluctuating network conditions and the computation capability of the cloud servers for task offloading.
 
-The state space includes:
-\begin{itemize}
-\item Available computation units (normalized)
-\item Remaining epochs for task completion
-\item MEC server computation units and processing times
-\item Queue status (computation units and processing times)
-\item Success indicators for local and offload operations
-\item Context features (agent velocity and computation capacity)
-\end{itemize}
+Formally, the ATLAS framework models the task offloading problem as a tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ is the action space, $\mathcal{P}$ is the state transition function, $\mathcal{R}$ is the reward function, and $\gamma \in [0,1]$ is the discount factor. Each UAV agent observes the current system state $s_t \in \mathcal{S}$, selects an action $a_t \in \mathcal{A}$ according to its policy $\pi(a_t|s_t)$, and receives a reward $r_t = \mathcal{R}(s_t, a_t)$ while transitioning to the next state $s_{t+1} \sim \mathcal{P}(s_{t+1}|s_t, a_t)$.
 
-The action space consists of discrete actions: $A = \{0, 1, 2\}$ representing LOCAL, OFFLOAD, and DISCARD respectively.
-
-The reward function incorporates multiple factors including energy costs, processing delays, and failure penalties:
-
+The primary objective is to learn an optimal policy $\pi^*$ that maximizes the expected cumulative discounted reward:
 \begin{equation}
-R = -\alpha \cdot E_{local} - \beta \cdot T_{offload} - \gamma \cdot D_{transmission} + \text{rewards} - \text{penalties}
+\pi^* = \arg\max_\pi \mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^t r_t \mid \pi\right]
 \end{equation}
 
-where $\alpha$, $\beta$, and $\gamma$ are weighting coefficients for local processing energy cost, offload time cost, and transmission delay respectively.
+This formulation enables UAV agents to balance multiple competing objectives including energy efficiency, processing latency minimization, and task completion success rates in dynamic edge computing scenarios.
+
+\subsection{State Space}
+
+The state space $\mathcal{S}$ in the ATLAS framework captures comprehensive information about the UAV's computational environment, task queue status, and contextual factors that influence offloading decisions. We define the state space as a Cartesian product of four fundamental components:
+
+\begin{equation}
+\mathcal{S} = \mathcal{C} \times \mathcal{Q} \times \mathcal{E} \times \mathcal{V}
+\end{equation}
+
+where each component represents distinct aspects of the system state:
+
+\textbf{Computational State ($\mathcal{C}$):} This component characterizes the UAV's local computational resources and task processing status:
+\begin{equation}
+\mathcal{C} = \{c_{avail}, c_{epochs}\}
+\end{equation}
+where $c_{avail} \in [0, 1]$ represents the normalized available computation units on the UAV, and $c_{epochs} \in [0, 1]$ denotes the remaining normalized epochs for task completion.
+
+\textbf{Queue State ($\mathcal{Q}$):} This captures the current status of the UAV's task buffer and processing queue:
+\begin{equation}
+\mathcal{Q} = \{q_{units}, q_{times}, q_{success}\}
+\end{equation}
+where $q_{units} \in [0, 1]$ represents the normalized queue computation requirements, $q_{times} \in [0, 1]$ indicates normalized processing times, and $q_{success} \in \{0, 1\}^2$ provides binary success indicators for local and offload operations.
+
+\textbf{Environment State ($\mathcal{E}$):} This component models the external MEC infrastructure and network conditions:
+\begin{equation}
+\mathcal{E} = \{e_{mec\_units}, e_{mec\_times}\}
+\end{equation}
+where $e_{mec\_units} \in [0, 1]$ represents normalized available MEC server computation units, and $e_{mec\_times} \in [0, 1]$ denotes normalized MEC processing times.
+
+\textbf{Vehicle Context ($\mathcal{V}$):} This encompasses UAV-specific contextual information:
+\begin{equation}
+\mathcal{V} = \{v_{velocity}, v_{capacity}\}
+\end{equation}
+where $v_{velocity} \in [0, 1]$ represents normalized agent velocity, and $v_{capacity} \in [0, 1]$ indicates normalized computation capacity.
+
+The complete state vector at time $t$ is represented as:
+\begin{equation}
+s_t = (c_{avail}^{(t)}, c_{epochs}^{(t)}, q_{units}^{(t)}, q_{times}^{(t)}, q_{success}^{(t)}, e_{mec\_units}^{(t)}, e_{mec\_times}^{(t)}, v_{velocity}^{(t)}, v_{capacity}^{(t)})
+\end{equation}
+
+All state components are normalized to $[0, 1]$ to ensure stable neural network training and enable effective knowledge transfer across different environmental configurations.
+
+\subsection{Action Space}
+
+The action space $\mathcal{A}$ in the ATLAS framework defines the discrete set of decisions available to each UAV agent when processing incoming computational tasks. We formulate the action space as a finite discrete set:
+
+\begin{equation}
+\mathcal{A} = \{a_{LOCAL}, a_{OFFLOAD}, a_{DISCARD}\} = \{0, 1, 2\}
+\end{equation}
+
+Each action corresponds to a distinct task processing strategy with specific operational characteristics:
+
+\textbf{Local Processing ($a_{LOCAL} = 0$):} When this action is selected, the UAV processes the computational task using its onboard computing resources. This action is optimal when:
+\begin{itemize}
+\item Local computational capacity is sufficient for the task requirements
+\item Network connectivity to MEC servers is poor or unavailable  
+\item Energy consumption for local processing is acceptable
+\item Processing latency requirements can be met locally
+\end{itemize}
+
+The local processing action triggers immediate computation on the UAV, consuming local energy resources but avoiding transmission delays and potential network failures.
+
+\textbf{Offloading ($a_{OFFLOAD} = 1$):} This action involves transmitting the computational task to available MEC servers for remote processing. Offloading is advantageous when:
+\begin{itemize}
+\item Local computational resources are insufficient or overloaded
+\item MEC servers have available capacity and favorable processing times
+\item Network conditions support reliable task transmission
+\item Total offloading latency (transmission + processing + result retrieval) is acceptable
+\end{itemize}
+
+The offloading action incurs transmission energy costs and introduces network-dependent delays, but potentially reduces local computational load and enables processing of resource-intensive tasks.
+
+\textbf{Task Discard ($a_{DISCARD} = 2$):} When system conditions are unfavorable for both local processing and offloading, the agent may choose to discard the task. This action is selected when:
+\begin{itemize}
+\item Local resources are critically low 
+\item MEC servers are overloaded or unreachable
+\item Task deadline cannot be met through any processing option
+\item Energy conservation is prioritized over task completion
+\end{itemize}
+
+Task discard minimizes immediate resource consumption but results in task failure penalties in the reward function.
+
+The discrete action formulation enables straightforward policy optimization through categorical probability distributions, allowing the neural network to output action probabilities $\pi(a_t|s_t)$ for effective exploration and exploitation during training.
+
+\subsection{State Transition Function}
+
+The state transition function $\mathcal{P}: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \rightarrow [0,1]$ defines the probability distribution over next states given the current state and action. In the ATLAS framework, state transitions are governed by the dynamics of the UAV environment, task processing outcomes, and system resource evolution.
+
+The transition probability can be expressed as:
+\begin{equation}
+\mathcal{P}(s_{t+1}|s_t, a_t) = P(s_{t+1} = (c', q', e', v')|s_t = (c, q, e, v), a_t)
+\end{equation}
+
+The state transition dynamics are influenced by several key factors:
+
+\textbf{Computational Resource Evolution:} The computational state transitions depend on task processing outcomes and resource consumption:
+\begin{equation}
+c'_{avail} = \begin{cases}
+\max(0, c_{avail} - \Delta c_{local}) & \text{if } a_t = a_{LOCAL} \\
+c_{avail} & \text{if } a_t = a_{OFFLOAD} \\
+c_{avail} & \text{if } a_t = a_{DISCARD}
+\end{cases}
+\end{equation}
+
+where $\Delta c_{local}$ represents the normalized computational resources consumed for local processing.
+
+\textbf{Queue State Dynamics:} The queue state evolves based on task arrivals, processing actions, and completion events:
+\begin{equation}
+q'_{units} = f_{queue}(q_{units}, a_t, \text{new\_tasks}, \text{completed\_tasks})
+\end{equation}
+
+Queue updates incorporate the stochastic nature of task arrivals and the deterministic effects of processing actions.
+
+\textbf{Environment State Changes:} MEC server states evolve based on system load and external factors:
+\begin{equation}
+e'_{mec\_units} \sim P_{MEC}(e_{mec\_units}|e_{mec\_units}, \text{system\_load})
+\end{equation}
+
+The MEC state transitions follow a semi-Markov process reflecting the dynamic nature of edge computing infrastructure.
+
+\textbf{Vehicle Mobility:} UAV contextual states evolve according to mobility patterns and mission requirements:
+\begin{equation}
+v'_{velocity} = v_{velocity} + \epsilon_{velocity}
+\end{equation}
+
+where $\epsilon_{velocity}$ represents bounded random variations in UAV velocity based on environmental conditions and flight dynamics.
+
+The complete transition function captures the stochastic nature of the UAV environment while maintaining computational tractability for reinforcement learning optimization.
+
+\subsection{Reward Function}
+
+The reward function $\mathcal{R}: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}$ provides immediate feedback to guide the UAV agent's learning process by quantifying the desirability of taking action $a_t$ in state $s_t$. The ATLAS framework designs a multi-objective reward function that balances energy efficiency, processing latency, and task completion success.
+
+The reward function is formulated as a weighted combination of multiple cost and benefit components:
+
+\begin{equation}
+\mathcal{R}(s_t, a_t) = -\alpha \cdot C_{energy}(s_t, a_t) - \beta \cdot C_{latency}(s_t, a_t) - \gamma \cdot C_{failure}(s_t, a_t) + \delta \cdot B_{completion}(s_t, a_t)
+\end{equation}
+
+where $\alpha$, $\beta$, $\gamma$, and $\delta$ are positive weighting coefficients that control the relative importance of each objective component.
+
+\textbf{Energy Cost ($C_{energy}$):} This component penalizes energy consumption for different actions:
+\begin{equation}
+C_{energy}(s_t, a_t) = \begin{cases}
+E_{local} \cdot q_{units} & \text{if } a_t = a_{LOCAL} \\
+E_{transmission} \cdot q_{units} & \text{if } a_t = a_{OFFLOAD} \\
+0 & \text{if } a_t = a_{DISCARD}
+\end{cases}
+\end{equation}
+
+where $E_{local}$ and $E_{transmission}$ represent normalized energy costs for local processing and task transmission, respectively.
+
+\textbf{Latency Cost ($C_{latency}$):} This component accounts for processing and communication delays:
+\begin{equation}
+C_{latency}(s_t, a_t) = \begin{cases}
+T_{local}(q_{units}, c_{avail}) & \text{if } a_t = a_{LOCAL} \\
+T_{offload}(q_{units}, e_{mec\_times}) + T_{transmission} & \text{if } a_t = a_{OFFLOAD} \\
+0 & \text{if } a_t = a_{DISCARD}
+\end{cases}
+\end{equation}
+
+where $T_{local}$ and $T_{offload}$ are functions computing processing times based on task requirements and available resources.
+
+\textbf{Failure Penalty ($C_{failure}$):} This component penalizes unsuccessful task processing:
+\begin{equation}
+C_{failure}(s_t, a_t) = \begin{cases}
+P_{fail\_local} \cdot \rho_{failure} & \text{if } a_t = a_{LOCAL} \\
+P_{fail\_offload} \cdot \rho_{failure} & \text{if } a_t = a_{OFFLOAD} \\
+\rho_{discard} & \text{if } a_t = a_{DISCARD}
+\end{cases}
+\end{equation}
+
+where $P_{fail\_local}$ and $P_{fail\_offload}$ are failure probabilities, and $\rho_{failure}$ and $\rho_{discard}$ are penalty magnitudes.
+
+\textbf{Completion Benefit ($B_{completion}$):} This component provides positive rewards for successful task completion:
+\begin{equation}
+B_{completion}(s_t, a_t) = \begin{cases}
+(1 - P_{fail\_local}) \cdot \eta_{success} & \text{if } a_t = a_{LOCAL} \\
+(1 - P_{fail\_offload}) \cdot \eta_{success} & \text{if } a_t = a_{OFFLOAD} \\
+0 & \text{if } a_t = a_{DISCARD}
+\end{cases}
+\end{equation}
+
+where $\eta_{success}$ represents the positive reward magnitude for successful task completion.
+
+This multi-objective reward design enables the ATLAS system to learn policies that optimize the trade-off between energy consumption, processing latency, and task success rates across diverse operational conditions.
 
 \subsection{A3C Architecture}
 

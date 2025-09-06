@@ -84,8 +84,7 @@ class CustomEnv(gym.Env):
     def get_obs(self):
         ctx_vel, ctx_comp = self._ctx()
         return {"available_computation_units": self.available_computation_units / self.max_available_computation_units,
-                # "number_of_associated_terminals": self.number_of_associated_terminals,
-                "channel_quality": self.channel_quality,
+                # "channel_quality": self.channel_quality,
                 "remain_epochs": self.remain_epochs / self.max_remain_epochs,
                 "mec_comp_units": self.mec_comp_units / self.max_comp_units,
                 "mec_proc_times": self.mec_proc_times / self.max_proc_times,
@@ -152,7 +151,6 @@ class CustomEnv(gym.Env):
 
         self.available_computation_units = self.max_available_computation_units
         self.available_computation_units_for_cloud = self.max_available_computation_units_for_cloud
-        # self.number_of_associated_terminals = self.rng.integers(1, self.max_number_of_associated_terminals + 1, size=1)
         self.channel_quality = self.rng.integers(0, self.max_channel_quality)
         self.remain_epochs = self.max_remain_epochs
         self.remain_processing = 0
