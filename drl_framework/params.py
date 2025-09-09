@@ -37,17 +37,17 @@ REWARD_PARAMS = {
     'BETA': 0.5,              # 오프로드 시간 비용 계수
     'GAMMA': 2.0,               # 전송 지연 계수
     'REWARD_SCALE': 1.0,     # 보상 배율
-    'FAILURE_PENALTY': 2.0,    # 실패 시 패널티
-    'ENERGY_COST_COEFF': 10.0,
+    'FAILURE_PENALTY': 5.0,    # 실패 시 패널티 (DISCARD에도 적용되어 시도를 유도)
+    'ENERGY_COST_COEFF': 2.0,  # 에너지 비용 감소 (시도 유도)
     'CONGESTION_COST_COEFF': 0.1
 }
 
 # ===== 학습 관련 파라미터 =====
 gamma = 0.99                   # discount factor
-entropy_coef = 0.001            # policy entropy 가중치 (exploration 유도)
+entropy_coef = 0.01             # policy entropy 가중치 (exploration 유도) - 증가하여 탐색 강화
 value_loss_coef = 0.5          # value loss에 대한 가중치
-lr = 1e-5                      # learning rate
-max_grad_norm = 0.1            # gradient clipping 임계값
+lr = 1e-4                      # learning rate - 개별 워커와 동일하게 증가
+max_grad_norm = 5.0            # gradient clipping 임계값 - 증가하여 학습 신호 보존
 hidden_dim = 128               # hidden layer 노드 수
 
 # Set parameters

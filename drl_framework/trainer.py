@@ -296,13 +296,21 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
                     flatten_dict_values(state), dtype=torch.float32, device=device
                 ).unsqueeze(0)  # (1, state_dim)
 
-                # --- (C-1) 1-step RNN 전파 및 행동 샘플 ---
+                # --- (C-1) 1-step RNN 전파 및 행동 샘플 (액션 마스킹 적용) ---
                 with torch.no_grad():
                     logits, value, hx = working_model.step(obs_tensor, hx)
-                    dist = Categorical(logits=logits)
+                    
+                    # 액션 마스킹 적용
+                    action_mask = env.get_action_mask()
+                    masked_logits = logits.clone()
+                    for i, valid in enumerate(action_mask):
+                        if not valid:
+                            masked_logits[0, i] = float('-inf')
+                    
+                    dist = Categorical(logits=masked_logits)
                     action = dist.sample()                      # (1,)
                     logp  = dist.log_prob(action)               # (1,)  # 저장은 이후 rollout 재계산에서 함
-                    probs = torch.softmax(logits, dim=-1)       # (1, A)
+                    probs = torch.softmax(masked_logits, dim=-1)       # (1, A)
                 last_probs_np = probs.detach().cpu().numpy()
 
                 # 환경 한 스텝
@@ -396,11 +404,14 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
 
             if use_global_model:
                 torch.nn.utils.clip_grad_norm_(working_model.parameters(), max_grad_norm)
+                # 글로벌 모델 그래디언트 초기화 후 복사 (누적 방지)
+                optimizer.zero_grad()
                 for lp, gp in zip(working_model.parameters(), model.parameters()):
-                    if gp._grad is None:
-                        gp._grad = lp.grad.clone()
-                    else:
-                        gp._grad += lp.grad
+                    if lp.grad is not None:
+                        if gp.grad is None:
+                            gp.grad = lp.grad.clone()
+                        else:
+                            gp.grad.copy_(lp.grad)  # 누적이 아닌 직접 복사
                 optimizer.step()
                 working_model.load_state_dict(model.state_dict())
             else:
@@ -654,9 +665,17 @@ def individual_worker(worker_id, env_fn, log_path, total_episodes,
 
                 with torch.no_grad():
                     logits, value, hx = local_model.step(obs_tensor, hx)
-                    dist = Categorical(logits=logits)
+                    
+                    # 액션 마스킹 적용
+                    action_mask = env.get_action_mask()
+                    masked_logits = logits.clone()
+                    for i, valid in enumerate(action_mask):
+                        if not valid:
+                            masked_logits[0, i] = float('-inf')
+                    
+                    dist = Categorical(logits=masked_logits)
                     action = dist.sample()
-                    probs = torch.softmax(logits, dim=-1)       # (1, A)
+                    probs = torch.softmax(masked_logits, dim=-1)       # (1, A)
                 last_probs_np = probs.detach().cpu().numpy()
 
                 next_state, reward, done, _, _ = env.step(action.item())

@@ -13,7 +13,7 @@ env_param_list = []
 for i in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
     # e["max_comp_units"] = np.random.randint(80, 121)
-    e["max_comp_units"] = np.arange(40, 161, 10)[i % n_workers]  # 40, 50, ..., 160
+    e["max_comp_units"] = np.arange(80, 201, 30)[i % n_workers]  # 80, 110, 140, 170, 200 - 태스크 크기(1-200)를 처리할 수 있는 범위
     # e["agent_velocities"] = np.arange(30, 101)[i % n_workers] 
     env_param_list.append(e)
 # Do action masking!!

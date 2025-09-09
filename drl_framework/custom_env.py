@@ -97,6 +97,36 @@ class CustomEnv(gym.Env):
                 "ctx_vel": ctx_vel,
                 "ctx_comp": ctx_comp
         }
+    
+    def get_valid_actions(self):
+        """현재 상태에서 유효한 액션들을 반환합니다."""
+        LOCAL, OFFLOAD, DISCARD = 0, 1, 2
+        valid_actions = [DISCARD]  # DISCARD는 항상 가능
+        
+        # LOCAL 액션 체크
+        local_possible = ((self.available_computation_units >= self.queue_comp_units) and 
+                         (self.mec_comp_units[self.mec_comp_units == 0].size > 0) and
+                         (self.queue_comp_units > 0))
+        if local_possible:
+            valid_actions.append(LOCAL)
+        
+        # OFFLOAD 액션 체크
+        offload_possible = ((self.available_computation_units_for_cloud >= self.queue_comp_units) and
+                           (self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
+                           (self.queue_comp_units > 0) and
+                           (self.channel_quality == 1))
+        if offload_possible:
+            valid_actions.append(OFFLOAD)
+            
+        return valid_actions
+    
+    def get_action_mask(self):
+        """액션 마스크를 반환합니다. True는 유효한 액션, False는 무효한 액션"""
+        valid_actions = self.get_valid_actions()
+        mask = [False, False, False]  # [LOCAL, OFFLOAD, DISCARD]
+        for action in valid_actions:
+            mask[action] = True
+        return mask
 
     def stepfunc(self, thres, x):
         if x > thres:
@@ -249,7 +279,8 @@ class CustomEnv(gym.Env):
             self.reward -= FAILURE_PENALTY
         
         # 새로운 작업 생성
-        self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
+        # self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
+        self.queue_comp_units = self.rng.integers(1, 200)
         self.queue_proc_times = self.rng.integers(1, self.max_proc_times + 1)
             
         self.channel_quality = self.change_channel_quality()
