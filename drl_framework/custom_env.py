@@ -243,6 +243,8 @@ class CustomEnv(gym.Env):
                 # energy = 0.0
                 latency = proc_time
                 self.local_success = 0
+            if not success:
+                self.reward -= 2 * FAILURE_PENALTY
         elif action == OFFLOAD:   # Offload
             case_action = ((self.available_computation_units_for_cloud >= self.queue_comp_units) and
                             (self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
@@ -270,13 +272,17 @@ class CustomEnv(gym.Env):
                 # energy = BETA * comp_units
                 latency = proc_time
                 self.offload_success = 0
+            if not success:
+                self.reward -= 2 * FAILURE_PENALTY
         elif action == DISCARD:  # Discard
             success = False
+            if not success:
+                self.reward -= FAILURE_PENALTY
         else:
             raise ValueError("Invalid action")
         
-        if not success:
-            self.reward -= FAILURE_PENALTY
+        # if not success:
+        #     self.reward -= FAILURE_PENALTY
         
         # 새로운 작업 생성
         # self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)

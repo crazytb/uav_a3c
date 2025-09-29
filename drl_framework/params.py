@@ -38,7 +38,7 @@ REWARD_PARAMS = {
     'GAMMA': 2.0,               # 전송 지연 계수
     'REWARD_SCALE': 1.0,     # 보상 배율
     'FAILURE_PENALTY': 5.0,    # 실패 시 패널티 (DISCARD에도 적용되어 시도를 유도)
-    'ENERGY_COST_COEFF': 1.0,  # 에너지 비용 감소 (시도 유도)
+    'ENERGY_COST_COEFF': 0.0,  # 에너지 비용 감소 (시도 유도)
     'CONGESTION_COST_COEFF': 0.1
 }
 
