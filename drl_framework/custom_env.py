@@ -179,7 +179,11 @@ class CustomEnv(gym.Env):
         """
         super().reset(seed=seed)
 
+        # 로컬 자원 초기화
         self.available_computation_units = self.max_available_computation_units
+
+        # 이 값은 network_state가 없을 때만 사용됨 (평가/테스트용)
+        # 실제 학습에서는 network_state.available_cloud_capacity가 공유 자원을 관리
         self.available_computation_units_for_cloud = self.max_available_computation_units_for_cloud
         self.channel_quality = self.rng.integers(0, self.max_channel_quality)
         self.remain_epochs = self.max_remain_epochs
@@ -246,19 +250,33 @@ class CustomEnv(gym.Env):
             if not success:
                 self.reward -= 2 * FAILURE_PENALTY
         elif action == OFFLOAD:   # Offload
-            case_action = ((self.available_computation_units_for_cloud >= self.queue_comp_units) and
-                            (self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
-                            (self.queue_comp_units > 0) and
-                            (self.channel_quality == 1))  # Only offload if channel quality is good
+            # 먼저 로컬 조건 체크 (공유 자원 소모 전에)
+            local_conditions = ((self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
+                               (self.queue_comp_units > 0) and
+                               (self.channel_quality == 1))  # Only offload if channel quality is good
+
+            # 로컬 조건이 만족되면 공유 클라우드 자원 확인 및 소모
+            can_consume_cloud = False
+            if local_conditions and self.network_state:
+                can_consume_cloud = self.network_state.consume_cloud_resource(self.worker_id, self.queue_comp_units)
+            elif local_conditions and not self.network_state:
+                # network_state가 없으면 기존 방식대로 (평가/테스트용)
+                can_consume_cloud = (self.available_computation_units_for_cloud >= self.queue_comp_units)
+
+            case_action = local_conditions and can_consume_cloud
+
             # self.reward -= (self.queue_comp_units / self.max_comp_units) * ENERGY_COST_COEFF
             self.reward -= ENERGY_COST_COEFF
             if self.network_state:
                 congestion = self.network_state.get_congestion_level()
                 congestion_penalty = congestion * 10.0  # 간단한 페널티
-                self.network_state.add_offloading_load(self.worker_id, self.queue_comp_units)  # worker_id는 나중에 전달
+                self.network_state.add_offloading_load(self.worker_id, self.queue_comp_units)
             # self.reward -= congestion_penalty * CONGESTION_COST_COEFF
             if case_action:
-                self.available_computation_units_for_cloud -= self.queue_comp_units
+                # 로컬 큐 업데이트 (공유 자원은 이미 consume_cloud_resource에서 차감됨)
+                if not self.network_state:
+                    # network_state 없으면 로컬 자원 차감 (호환성)
+                    self.available_computation_units_for_cloud -= self.queue_comp_units
                 # 🆕 comp_units와 proc_times를 함께 저장
                 self.cloud_comp_units = self.fill_first_zero(self.cloud_comp_units, self.queue_comp_units)
                 self.cloud_proc_times = self.fill_first_zero(self.cloud_proc_times, self.queue_proc_times)
@@ -328,7 +346,11 @@ class CustomEnv(gym.Env):
 
         next_obs = self.get_obs()
 
-        return next_obs, self.reward, self.remain_epochs == 0, False, {}
+        # 보상 스케일링 적용 (수치적 안정성 및 학습 속도 향상)
+        REWARD_SCALE = self.reward_params.get('REWARD_SCALE', 1.0)
+        scaled_reward = self.reward * REWARD_SCALE
+
+        return next_obs, scaled_reward, self.remain_epochs == 0, False, {}
 
 
     def render(self):
@@ -344,8 +366,12 @@ class CustomEnv(gym.Env):
         pass
 
 def make_env(**kwargs):
-    # network_state = kwargs.pop('network_state', None)
-    # def _make():
-        # return CustomEnv(**kwargs, network_state=network_state)
-    # return _make
-    return partial(CustomEnv, **kwargs)
+    """
+    환경 생성 팩토리 함수
+    network_state와 worker_id를 포함하여 CustomEnv를 생성하는 callable 반환
+    multiprocessing pickle 호환을 위해 functools.partial 사용
+    """
+    network_state = kwargs.pop('network_state', None)
+    worker_id = kwargs.pop('worker_id', None)
+    # partial은 pickle 가능하므로 multiprocessing에서 안전하게 사용 가능
+    return partial(CustomEnv, network_state=network_state, worker_id=worker_id, **kwargs)

@@ -33,10 +33,10 @@ ENV_PARAMS = {
 
 # Reward 관련 파라미터
 REWARD_PARAMS = {
-    'ALPHA': 1,             # 로컬 처리 에너지 비용 계수
-    'BETA': 0.5,              # 오프로드 시간 비용 계수
-    'GAMMA': 2.0,               # 전송 지연 계수
-    'REWARD_SCALE': 1.0,     # 보상 배율
+    'ALPHA': 1,                # 로컬 처리 에너지 비용 계수
+    'BETA': 0.5,               # 오프로드 시간 비용 계수
+    'GAMMA': 2.0,              # 전송 지연 계수
+    'REWARD_SCALE': 0.01,      # 보상 스케일링 (1/100) - Value Loss 안정화 및 학습 속도 향상
     'FAILURE_PENALTY': 5.0,    # 실패 시 패널티 (DISCARD에도 적용되어 시도를 유도)
     'ENERGY_COST_COEFF': 0.0,  # 에너지 비용 감소 (시도 유도)
     'CONGESTION_COST_COEFF': 0.1

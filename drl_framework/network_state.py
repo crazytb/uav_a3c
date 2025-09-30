@@ -102,13 +102,16 @@ class NetworkState:
         with self.lock:
             # 이전 에피소드의 잔여 부하는 일정 비율만 유지 (현실적 모델링)
             self.total_offloading_load.value *= 0.1  # 10%만 다음 에피소드로 이월
-            
+
+            # ⭐ 클라우드 자원 완전 회복 (에피소드마다 리셋)
+            self.available_cloud_capacity.value = self.max_cloud_capacity
+
             # 에피소드 번호 증가
             self.current_episode.value += 1
-            
+
             # 워커별 통계는 누적 유지 (전체 학습 과정 추적용)
-            
-            # print(f"[NetworkState] Reset for episode {self.current_episode.value}, residual load: {self.total_offloading_load.value:.2f}")
+
+            # print(f"[NetworkState] Reset for episode {self.current_episode.value}, cloud capacity reset to {self.max_cloud_capacity}")
     
     def print_episode_summary(self):
         """에피소드 종료 시 요약 정보 출력"""
