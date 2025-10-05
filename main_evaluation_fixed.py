@@ -14,7 +14,7 @@ import drl_framework.params as params
 import copy
 
 # 타임스탬프
-stamp = "20250930_161847"  # 예시 타임스탬프, 필요에 따라 변경
+stamp = "20251005_170221"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
@@ -35,15 +35,23 @@ env_param_list = []
 for _ in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
     e["max_comp_units"] = np.random.randint(40, 161)
-    # e["agent_velocities"] = np.random.randint(30, 101)
+    e["agent_velocities"] = np.random.randint(40, 81)
     env_param_list.append(e)
 
 # @torch.no_grad()
 def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, render=False, log_actions=False, log_prefix=""):
     """단일 환경에서 모델 평가 및 액션 로깅"""
     model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
-    state_dict = torch.load(model_path, map_location=device)
-    model.load_state_dict(state_dict)
+
+    # .pth 파일 로드 (메타데이터 포함 여부 자동 처리)
+    checkpoint = torch.load(model_path, map_location=device)
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        # 메타데이터 포함된 경우
+        model.load_state_dict(checkpoint['model_state_dict'])
+    else:
+        # 가중치만 있는 경우 (구버전)
+        model.load_state_dict(checkpoint)
+
     model.eval()
 
     env_fn = make_env(**env_kwargs, reward_params=REWARD_PARAMS)

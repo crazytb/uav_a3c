@@ -527,9 +527,27 @@ def train(n_workers, total_episodes, env_param_list=None):
     # 곡선 저장
     _plot_curves_from_csv(agg_csv, os.path.join(logs_dir, "curves"))
 
-    # 최종 모델 저장
+    # 최종 모델 저장 (메타데이터 포함)
     final_model_path = os.path.join(models_dir, "global_final.pth")
-    torch.save(global_model.state_dict(), final_model_path)
+
+    # training_log.csv에서 최종 통계 추출
+    df = pd.read_csv(agg_csv)
+    final_episode = df['episode'].max()
+    final_reward = df.groupby('episode')['reward'].mean().iloc[-1]
+    total_steps = df['step'].max()
+
+    torch.save({
+        'model_state_dict': global_model.state_dict(),
+        'episode': int(final_episode),
+        'total_steps': int(total_steps),
+        'final_reward': float(final_reward),
+        'n_workers': n_workers,
+        'timestamp': stamp,
+        'state_dim': state_dim,
+        'action_dim': action_dim,
+        'hidden_dim': hidden_dim
+    }, final_model_path)
+
     print(f"Training complete. Final model saved at: {final_model_path}")
     print(f"Logs & curves saved under: {logs_dir}")
 
@@ -782,13 +800,29 @@ def individual_worker(worker_id, env_fn, log_path, total_episodes,
             print(f"[Worker {worker_id}] Episode {episode}, Reward: {total_reward:.2f}, "
                     f"Loss: {float(total_loss.detach().item()):.4f}, Example action probs: {last_probs_np.round(3)}")
 
-    # 학습 완료 후 모델 저장 (수정)
+    # 학습 완료 후 모델 저장 (메타데이터 포함)
     run_dir = os.path.dirname(log_path)  # runs/individual_{stamp}
     models_dir = os.path.join(run_dir, "models")  # runs/individual_{stamp}/models
     os.makedirs(models_dir, exist_ok=True)
-    
+
     model_path = os.path.join(models_dir, f"individual_worker_{worker_id}_final.pth")
-    torch.save(local_model.state_dict(), model_path)
+
+    # per-worker CSV 읽어서 최종 reward 계산
+    df_worker = pd.read_csv(log_path)
+    final_reward_worker = df_worker['reward'].iloc[-1] if len(df_worker) > 0 else 0.0
+
+    torch.save({
+        'model_state_dict': local_model.state_dict(),
+        'worker_id': worker_id,
+        'episode': total_episodes,
+        'total_steps': global_step,
+        'final_reward': float(final_reward_worker),
+        'timestamp': stamp,
+        'state_dim': state_dim,
+        'action_dim': action_dim,
+        'hidden_dim': hidden_dim
+    }, model_path)
+
     print(f"[Worker {worker_id}] Individual training complete. Model saved at: {model_path}")
 
 
