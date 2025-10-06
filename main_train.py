@@ -27,9 +27,9 @@ env_param_list = []
 for i in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
     # e["max_comp_units"] = np.random.randint(80, 121)
-    # 10개 워커용: 80~200을 10등분 (간격 약 13)
+    # n_worker개 워커용: 80~200을 n_worker개로 나누기
     e["max_comp_units"] = int(80 + (200 - 80) * i / (n_workers - 1)) if n_workers > 1 else 140
-    # 10개 워커용: 20~100을 10등분 (간격 약 9)
+    # n_worker개 워커용: 20~100을 n_worker개로 나누기
     e["agent_velocities"] = int(20 + (100 - 20) * i / (n_workers - 1)) if n_workers > 1 else 60
     env_param_list.append(e)
 # Do action masking!!

@@ -18,7 +18,7 @@ log_dir = "logs"
 # ===== A3C 구조 관련 파라미터 =====
 n_workers = 10                  # 병렬 에이전트(worker) 수
 # update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 500      # worker 당 총 에피소드 수
+target_episode_count = 1000      # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
@@ -44,7 +44,7 @@ REWARD_PARAMS = {
 
 # ===== 학습 관련 파라미터 =====
 gamma = 0.99                   # discount factor
-entropy_coef = 0.01             # policy entropy 가중치 (exploration 유도) - 증가하여 탐색 강화
+entropy_coef = 0.05             # policy entropy 가중치 (exploration 유도) - 증가하여 탐색 강화
 value_loss_coef = 0.1          # value loss에 대한 가중치 (0.5 -> 0.1로 감소하여 value loss 증가 문제 완화)
 lr = 1e-4                      # learning rate - 개별 워커와 동일하게 증가
 max_grad_norm = 5.0            # gradient clipping 임계값 - 증가하여 학습 신호 보존

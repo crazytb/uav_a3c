@@ -243,8 +243,8 @@ class SharedAdam(torch.optim.Adam):
                 state['exp_avg_sq'].share_memory_()
 
 
-def universal_worker(worker_id, model, optimizer, env_fn, log_path, 
-                     use_global_model=True, 
+def universal_worker(worker_id, model, optimizer, env_fn, log_path,
+                     use_global_model=True,
                      total_episodes=1000,
                      metrics_queue: Optional[Queue] = None,
                      episode_barrier=None,
@@ -265,6 +265,13 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
     # 로깅용 파일 초기화 유지
     with open(log_path, mode="a", newline="") as f:
         pass
+
+    # Step-level logging 파일 초기화
+    step_log_path = log_path.replace('.csv', '_step_log.csv')
+    with open(step_log_path, mode='w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['worker_id', 'episode', 'step', 'action',
+                        'local_comp_units', 'cloud_comp_units', 'reward'])
 
     for episode in range(1, total_episodes + 1):
         if episode_barrier:
@@ -315,6 +322,16 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
 
                 # 환경 한 스텝
                 next_state, reward, done, _, _ = env.step(action.item())
+
+                # Step-level logging: 현재 상태 기록 (원본 값, 정규화 안 된 값)
+                with open(step_log_path, mode='a', newline='') as f:
+                    writer = csv.writer(f)
+                    # 로컬 comp_units (환경에서 원본 값 가져오기 - 정규화 안 된 값)
+                    local_comp = env.available_computation_units if hasattr(env, 'available_computation_units') else 0
+                    # 클라우드 comp_units (network_state에서 가져오기)
+                    cloud_comp = network_state.available_cloud_capacity.value if network_state else 0
+                    writer.writerow([worker_id, episode, episode_steps + 1, action.item(),
+                                    local_comp, cloud_comp, float(reward)])
 
                 # 버퍼 저장 (학습 시점에 rollout()으로 다시 평가)
                 obs_seq.append(obs_tensor.squeeze(0))               # (state_dim,)
@@ -532,9 +549,14 @@ def train(n_workers, total_episodes, env_param_list=None):
 
     # training_log.csv에서 최종 통계 추출
     df = pd.read_csv(agg_csv)
-    final_episode = df['episode'].max()
-    final_reward = df.groupby('episode')['reward'].mean().iloc[-1]
-    total_steps = df['step'].max()
+    if len(df) > 0:
+        final_episode = df['episode'].max()
+        final_reward = df.groupby('episode')['reward'].mean().iloc[-1]
+        total_steps = df['step'].max()
+    else:
+        final_episode = 0
+        final_reward = 0.0
+        total_steps = 0
 
     torch.save({
         'model_state_dict': global_model.state_dict(),

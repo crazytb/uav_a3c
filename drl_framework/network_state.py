@@ -8,7 +8,7 @@ class NetworkState:
     Episode-level 동기화에서 네트워크 혼잡도를 추적합니다.
     """
     
-    def __init__(self, max_workers, max_network_capacity=1000.0, max_cloud_capacity=10000):
+    def __init__(self, max_workers, max_network_capacity=1000.0, max_cloud_capacity=1000):
         self.max_workers = max_workers
         self.max_capacity = max_network_capacity
         self.max_cloud_capacity = max_cloud_capacity

@@ -5,7 +5,8 @@ import numpy as np
 import os
 
 # Timestamp for unique directory naming
-timestamp = "20251005_170221"
+# timestamp = "20251005_170221"
+timestamp = "20251006_173633"
 
 # 최신 run 디렉토리
 a3c_dir = f'runs/a3c_{timestamp}'
@@ -115,7 +116,7 @@ ax1.legend(fontsize=11)
 ax1.grid(True, alpha=0.3)
 
 # (2) Moving Average (window=100)
-window = 100
+window = 50
 a3c_ma = a3c_reward['a3c_reward'].rolling(window=window, min_periods=1).mean()
 ind_ma = ind_reward['ind_reward'].rolling(window=window, min_periods=1).mean()
 
@@ -154,6 +155,30 @@ plt.tight_layout()
 output_path = 'reward_comparison_a3c_vs_individual.png'
 plt.savefig(output_path, dpi=180, bbox_inches='tight')
 print(f'[시각화 저장] {output_path}')
+print()
+
+# Save ax2 (Moving Average Comparison) separately
+os.makedirs('figures', exist_ok=True)
+
+fig_ax2, ax_single = plt.subplots(1, 1, figsize=(10, 6))
+ax_single.plot(a3c_reward['episode'], a3c_ma, label=f'A3C (MA-{window})', linewidth=2, alpha=0.8)
+ax_single.plot(ind_reward['episode'], ind_ma, label=f'Individual (MA-{window})', linewidth=2, alpha=0.8)
+ax_single.set_xlabel('Episode', fontsize=12)
+ax_single.set_ylabel('Moving Average Reward', fontsize=12)
+ax_single.set_title(f'Moving Average Comparison (window={window})', fontsize=14, fontweight='bold')
+ax_single.legend(fontsize=11)
+ax_single.grid(True, alpha=0.3)
+
+# Save as PNG and EPS
+png_path = 'figures/moving_average_comparison.png'
+eps_path = 'figures/moving_average_comparison.eps'
+fig_ax2.savefig(png_path, dpi=300, bbox_inches='tight')
+fig_ax2.savefig(eps_path, format='eps', bbox_inches='tight')
+plt.close(fig_ax2)
+
+print(f'[ax2 saved separately]')
+print(f'  PNG: {png_path}')
+print(f'  EPS: {eps_path}')
 print()
 
 # 5. 학습 안정성 분석 (최근 500 episode 기준)

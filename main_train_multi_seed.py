@@ -17,8 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from drl_framework import params
 
 # Configuration
-N_SEEDS = 10  # Number of random seeds to run
-SEEDS = [42, 123, 456, 789, 1024, 2048, 4096, 8192, 16384, 32768]  # Fixed seeds for reproducibility
+N_SEEDS = 5  # Number of random seeds to run
+SEEDS = [42, 123, 456, 789, 1024, 2048, 4096, 8192, 16384, 32768][:N_SEEDS]  # Select first N_SEEDS
 N_WORKERS = params.n_workers  # Get from params.py
 
 print("="*80)
