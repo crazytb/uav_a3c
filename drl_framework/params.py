@@ -16,7 +16,7 @@ device = torch.device("cpu")  # Force CPU for compatibility
 log_dir = "logs"
 
 # ===== A3C 구조 관련 파라미터 =====
-n_workers = 10                  # 병렬 에이전트(worker) 수
+n_workers = 5                  # 병렬 에이전트(worker) 수
 # update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
 target_episode_count = 1000      # worker 당 총 에피소드 수
 
@@ -36,7 +36,7 @@ REWARD_PARAMS = {
     'ALPHA': 1,                # 로컬 처리 에너지 비용 계수
     'BETA': 0.5,               # 오프로드 시간 비용 계수
     'GAMMA': 2.0,              # 전송 지연 계수
-    'REWARD_SCALE': 0.01,      # 보상 스케일링 (1/100) - Value Loss 안정화 및 학습 속도 향상
+    'REWARD_SCALE': 0.05,      # 보상 스케일링 (1/20) - 중간 값
     'FAILURE_PENALTY': 5.0,    # 실패 시 패널티 (DISCARD에도 적용되어 시도를 유도)
     'ENERGY_COST_COEFF': 0.0,  # 에너지 비용 감소 (시도 유도)
     'CONGESTION_COST_COEFF': 0.1
@@ -44,10 +44,10 @@ REWARD_PARAMS = {
 
 # ===== 학습 관련 파라미터 =====
 gamma = 0.99                   # discount factor
-entropy_coef = 0.05             # policy entropy 가중치 (exploration 유도) - 증가하여 탐색 강화
-value_loss_coef = 0.1          # value loss에 대한 가중치 (0.5 -> 0.1로 감소하여 value loss 증가 문제 완화)
-lr = 1e-4                      # learning rate - 개별 워커와 동일하게 증가
-max_grad_norm = 5.0            # gradient clipping 임계값 - 증가하여 학습 신호 보존
+entropy_coef = 0.05             # policy entropy 가중치 - 중간 값 (탐색/exploitation 균형)
+value_loss_coef = 0.25          # value loss 가중치 - 중간 값 (안정성과 학습 균형)
+lr = 1e-4                       # learning rate (적절한 학습 속도 유지)
+max_grad_norm = 2.0             # gradient clipping 임계값 (5.0 -> 2.0, 안정화와 학습 속도의 균형)
 hidden_dim = 128               # hidden layer 노드 수
 
 # Set parameters

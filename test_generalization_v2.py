@@ -16,7 +16,7 @@ from drl_framework.params import *
 from torch.distributions import Categorical
 
 # 최신 학습 결과 타임스탬프
-TIMESTAMP = "20251006_011038"
+TIMESTAMP = "20251008_013452"
 
 # 환경 설정
 temp_env_fn = make_env(**ENV_PARAMS)
@@ -87,17 +87,18 @@ print("="*80)
 print()
 
 # 1. 학습 시 사용된 환경 (Seen environments)
-SEEN_COMP_UNITS = [80, 110, 140, 170, 200]
-SEEN_VELOCITIES = [20, 40, 60, 80, 100]
+# 학습: velocity 5-20 km/h, comp_units 200
+SEEN_COMP_UNITS = [200]
+SEEN_VELOCITIES = [5, 10, 15, 20]
 
-# 학습 시 각 Worker가 경험한 환경 조합
+# 학습 시 각 Worker가 경험한 환경 조합 (comp_units는 고정 200)
 SEEN_ENVS = [
-    (80, 20),   # Worker 0
-    (110, 40),  # Worker 1
-    (140, 60),  # Worker 2
-    (170, 80),  # Worker 3
-    (200, 100)  # Worker 4
-]*2
+    (200, 5),   # Worker 0
+    (200, 10),  # Worker 1
+    (200, 15),  # Worker 2
+    (200, 20),  # Worker 3
+    (200, 20),  # Worker 4 (중복)
+]
 
 # 2. 테스트 환경 설정
 # Seen 환경: 학습한 조합
@@ -114,41 +115,43 @@ for comp, vel in SEEN_ENVS:
         'type': 'Seen'
     })
 
-# (2) Interpolation 환경 (학습 범위 내, 새로운 조합)
-interpolation_configs = [
-    (95, 30),   # 사이값
-    (125, 50),
-    (155, 70),
-    (185, 90),
-    (110, 60),  # 섞인 조합
-    (140, 40),
-    (170, 20),
+# (2) Intra-Generalization: Velocity만 변경 (comp_units는 seen=200 유지)
+intra_configs = [
+    (200, 7),   # 사이값
+    (200, 12),
+    (200, 17),
+    (200, 25),  # 범위 약간 밖
+    (200, 30),
+    (200, 35),
 ]
-for comp, vel in interpolation_configs:
+for comp, vel in intra_configs:
     TEST_SCENARIOS.append({
         'comp_units': comp,
         'velocity': vel,
-        'type': 'Interpolation'
+        'type': 'Intra'
     })
 
-# (3) Extrapolation 환경 (학습 범위 밖)
-extrapolation_configs = [
-    (50, 10),    # 범위 밖 (낮음)
-    (220, 110),  # 범위 밖 (높음)
-    (60, 90),    # 한쪽만 범위 밖
-    (190, 15),
+# (3) Extra-Generalization: 둘 다 변경
+extra_configs = [
+    (100, 25),   # comp_units + velocity 둘 다 변경
+    (100, 30),
+    (150, 25),
+    (150, 30),
+    (150, 35),
+    (100, 10),   # comp_units만 변경 (velocity는 seen 범위)
+    (150, 15),
 ]
-for comp, vel in extrapolation_configs:
+for comp, vel in extra_configs:
     TEST_SCENARIOS.append({
         'comp_units': comp,
         'velocity': vel,
-        'type': 'Extrapolation'
+        'type': 'Extra'
     })
 
 print(f"총 테스트 시나리오: {len(TEST_SCENARIOS)}개")
-print(f"  - Seen          : {sum(1 for s in TEST_SCENARIOS if s['type'] == 'Seen')}")
-print(f"  - Interpolation : {sum(1 for s in TEST_SCENARIOS if s['type'] == 'Interpolation')}")
-print(f"  - Extrapolation : {sum(1 for s in TEST_SCENARIOS if s['type'] == 'Extrapolation')}")
+print(f"  - Seen : {sum(1 for s in TEST_SCENARIOS if s['type'] == 'Seen')}")
+print(f"  - Intra: {sum(1 for s in TEST_SCENARIOS if s['type'] == 'Intra')}")
+print(f"  - Extra: {sum(1 for s in TEST_SCENARIOS if s['type'] == 'Extra')}")
 print()
 
 # ========================================
@@ -322,33 +325,33 @@ ax2.set_ylabel('agent_velocities')
 
 # (3-7) Individual Workers 2D Heatmaps
 # Grid layout: row 1 has 2 slots (col 1, 2), row 2 has 3 slots (col 0, 1, 2)
-worker_positions = [
-    (1, 1),  # Worker 0
-    (1, 2),  # Worker 1
-    (2, 0),  # Worker 2
-    (2, 1),  # Worker 3
-    (2, 2),  # Worker 4
-]
+# worker_positions = [
+#     (1, 1),  # Worker 0
+#     (1, 2),  # Worker 1
+#     (2, 0),  # Worker 2
+#     (2, 1),  # Worker 3
+#     (2, 2),  # Worker 4
+# ]
 
-for worker_id in range(n_workers):
-    row, col = worker_positions[worker_id]
-    ax = fig.add_subplot(gs[row, col])
+# for worker_id in range(n_workers):
+#     row, col = worker_positions[worker_id]
+#     ax = fig.add_subplot(gs[row, col])
 
-    worker_data = df[df['worker_id'] == worker_id]
-    worker_pivot = worker_data.pivot_table(
-        values='mean_reward',
-        index='test_vel',
-        columns='test_comp',
-        aggfunc='mean'
-    )
+#     worker_data = df[df['worker_id'] == worker_id]
+#     worker_pivot = worker_data.pivot_table(
+#         values='mean_reward',
+#         index='test_vel',
+#         columns='test_comp',
+#         aggfunc='mean'
+#     )
 
-    trained_comp, trained_vel = SEEN_ENVS[worker_id]
+#     trained_comp, trained_vel = SEEN_ENVS[worker_id]
 
-    sns.heatmap(worker_pivot, annot=True, fmt='.2f', cmap='RdYlGn', ax=ax,
-                cbar_kws={'label': 'Reward'}, vmin=a3c_pivot.min().min(), vmax=a3c_pivot.max().max())
-    ax.set_title(f'Worker {worker_id} (trained@{trained_comp},{trained_vel})', fontsize=10, fontweight='bold')
-    ax.set_xlabel('max_comp_units', fontsize=9)
-    ax.set_ylabel('agent_velocities', fontsize=9)
+#     sns.heatmap(worker_pivot, annot=True, fmt='.2f', cmap='RdYlGn', ax=ax,
+#                 cbar_kws={'label': 'Reward'}, vmin=a3c_pivot.min().min(), vmax=a3c_pivot.max().max())
+#     ax.set_title(f'Worker {worker_id} (trained@{trained_comp},{trained_vel})', fontsize=10, fontweight='bold')
+#     ax.set_xlabel('max_comp_units', fontsize=9)
+#     ax.set_ylabel('agent_velocities', fontsize=9)
 
 output_path = f'generalization_test_v2_{TIMESTAMP}.png'
 plt.savefig(output_path, dpi=180, bbox_inches='tight')

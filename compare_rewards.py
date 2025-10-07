@@ -6,7 +6,7 @@ import os
 
 # Timestamp for unique directory naming
 # timestamp = "20251005_170221"
-timestamp = "20251006_173633"
+timestamp = "20251007_022054"
 
 # 최신 run 디렉토리
 a3c_dir = f'runs/a3c_{timestamp}'

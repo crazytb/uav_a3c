@@ -25,7 +25,7 @@ class CustomEnv(gym.Env):
         self.max_available_computation_units_for_cloud = max_comp_units_for_cloud
         self.max_channel_quality = 2
         self.max_remain_epochs = max_epoch_size
-        self.max_proc_times = int(np.ceil(max_epoch_size / 10))
+        self.max_proc_times = 50  # 고정값으로 변경 (기존: max_epoch_size/10 = 10)
         # --- Context for normalization (fixed bounds you use when sampling) ---
         self._VEL_MIN, self._VEL_MAX = 30.0, 100.0
         self._COMP_MAX = 120.0  # your randint upper bound
@@ -343,6 +343,29 @@ class CustomEnv(gym.Env):
 
         self.mec_proc_times = np.clip(self.mec_proc_times - 1, 0, self.max_proc_times)
         self.cloud_proc_times = np.clip(self.cloud_proc_times - 1, 0, self.max_proc_times)
+
+        # 에피소드 종료 시 미완료 작업에 대한 부분 보상
+        if self.remain_epochs == 0:
+            # MEC 미완료 작업
+            for i in range(len(self.mec_proc_times)):
+                if self.mec_proc_times[i] > 0 and self.mec_original_times[i] > 0:
+                    comp = self.mec_comp_units[i]
+                    original_time = self.mec_original_times[i]
+                    remaining_time = self.mec_proc_times[i]
+                    progress = (original_time - remaining_time) / original_time
+                    # 진행률에 비례한 부분 보상 (50% 가중치)
+                    self.reward += comp * progress * 0.5
+
+            # Cloud 미완료 작업
+            for i in range(len(self.cloud_proc_times)):
+                if self.cloud_proc_times[i] > 0 and self.cloud_original_times[i] > 0:
+                    comp = self.cloud_comp_units[i]
+                    original_time = self.cloud_original_times[i]
+                    remaining_time = self.cloud_proc_times[i]
+                    progress = (original_time - remaining_time) / original_time
+                    elapsed_time = original_time - remaining_time
+                    # 진행률 보상 - 경과 시간 비용
+                    self.reward += comp * progress * 0.5 - BETA * elapsed_time
 
         next_obs = self.get_obs()
 
