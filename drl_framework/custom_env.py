@@ -210,92 +210,54 @@ class CustomEnv(gym.Env):
         Returns: observation, reward, terminated, truncated, info
         """
         LOCAL, OFFLOAD, DISCARD = 0, 1, 2
-        ALPHA = self.reward_params.get('ALPHA')
-        BETA = self.reward_params.get('BETA')
-        GAMMA = self.reward_params.get('GAMMA')
-        SCALE = self.reward_params.get('REWARD_SCALE')
-        FAILURE_PENALTY = self.reward_params.get('FAILURE_PENALTY')
-        ENERGY_COST_COEFF = self.reward_params.get('ENERGY_COST_COEFF')
-        CONGESTION_COST_COEFF = self.reward_params.get('CONGESTION_COST_COEFF')
 
-        comp_units = self.queue_comp_units
-        proc_time = self.queue_proc_times
-        success = False
-        energy = 0.0
-        congestion_penalty = 0.0
+        # Reward는 완료된 comp_units만 반영 (즉시 패널티/보너스 제거)
         self.reward = 0
-        # forwarding phase
-        # 0: local process, 1: offload
+
+        # forwarding phase - action 수행 (패널티/보너스 없음)
         if action == LOCAL:  # Local process
-            case_action = ((self.available_computation_units >= self.queue_comp_units) and 
+            case_action = ((self.available_computation_units >= self.queue_comp_units) and
                            (self.mec_comp_units[self.mec_comp_units == 0].size > 0) and
                            (self.queue_comp_units > 0))
-            # self.reward -= (self.queue_comp_units / self.max_comp_units) * ENERGY_COST_COEFF
-            self.reward -= ENERGY_COST_COEFF
             if case_action:
                 self.available_computation_units -= self.queue_comp_units
-                # 🆕 comp_units와 proc_times를 함께 저장
                 self.mec_comp_units = self.fill_first_zero(self.mec_comp_units, self.queue_comp_units)
                 self.mec_proc_times = self.fill_first_zero(self.mec_proc_times, self.queue_proc_times)
                 self.mec_original_times = self.fill_first_zero(self.mec_original_times, self.queue_proc_times)
-                success = True
-                # energy = ALPHA * comp_units
-                latency = proc_time
                 self.local_success = 1
             else:
-                success = False
-                # energy = 0.0
-                latency = proc_time
                 self.local_success = 0
-            if not success:
-                self.reward -= 2 * FAILURE_PENALTY
+
         elif action == OFFLOAD:   # Offload
-            # 먼저 로컬 조건 체크 (공유 자원 소모 전에)
+            # 로컬 조건 체크
             local_conditions = ((self.cloud_comp_units[self.cloud_comp_units == 0].size > 0) and
                                (self.queue_comp_units > 0) and
-                               (self.channel_quality == 1))  # Only offload if channel quality is good
+                               (self.channel_quality == 1))
 
-            # 로컬 조건이 만족되면 공유 클라우드 자원 확인 및 소모
+            # 공유 클라우드 자원 확인 및 소모
             can_consume_cloud = False
             if local_conditions and self.network_state:
                 can_consume_cloud = self.network_state.consume_cloud_resource(self.worker_id, self.queue_comp_units)
             elif local_conditions and not self.network_state:
-                # network_state가 없으면 기존 방식대로 (평가/테스트용)
                 can_consume_cloud = (self.available_computation_units_for_cloud >= self.queue_comp_units)
 
             case_action = local_conditions and can_consume_cloud
 
-            # self.reward -= (self.queue_comp_units / self.max_comp_units) * ENERGY_COST_COEFF
-            self.reward -= ENERGY_COST_COEFF
             if self.network_state:
-                congestion = self.network_state.get_congestion_level()
-                congestion_penalty = congestion * 10.0  # 간단한 페널티
                 self.network_state.add_offloading_load(self.worker_id, self.queue_comp_units)
-            # self.reward -= congestion_penalty * CONGESTION_COST_COEFF
+
             if case_action:
-                # 로컬 큐 업데이트 (공유 자원은 이미 consume_cloud_resource에서 차감됨)
                 if not self.network_state:
-                    # network_state 없으면 로컬 자원 차감 (호환성)
                     self.available_computation_units_for_cloud -= self.queue_comp_units
-                # 🆕 comp_units와 proc_times를 함께 저장
                 self.cloud_comp_units = self.fill_first_zero(self.cloud_comp_units, self.queue_comp_units)
                 self.cloud_proc_times = self.fill_first_zero(self.cloud_proc_times, self.queue_proc_times)
                 self.cloud_original_times = self.fill_first_zero(self.cloud_original_times, self.queue_proc_times)
-                success = True
-                # energy = BETA * comp_units
-                latency = proc_time
                 self.offload_success = 1
             else:
-                success = False
-                # energy = BETA * comp_units
-                latency = proc_time
                 self.offload_success = 0
-            if not success:
-                self.reward -= 2 * FAILURE_PENALTY
+
         elif action == DISCARD:  # Discard
-            success = False
-            if not success:
-                self.reward -= FAILURE_PENALTY
+            pass  # 아무것도 하지 않음
         else:
             raise ValueError("Invalid action")
         
@@ -314,58 +276,34 @@ class CustomEnv(gym.Env):
         zeroed_mec = (self.mec_proc_times == 1)
         if zeroed_mec.any():
             done_comp = self.mec_comp_units[zeroed_mec].sum()
-            # 🆕 정확한 원본 처리 시간 사용
-            consumed_time = self.mec_original_times[zeroed_mec].sum()
             self.reward += done_comp
             self.available_computation_units += done_comp
-            self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_mec == False], 
+            self.mec_proc_times = np.concatenate([self.mec_proc_times[zeroed_mec == False],
                                                   np.zeros(zeroed_mec.sum(), dtype=int)])
-            self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_mec == False], 
+            self.mec_comp_units = np.concatenate([self.mec_comp_units[zeroed_mec == False],
                                                   np.zeros(zeroed_mec.sum(), dtype=int)])
-            self.mec_original_times = np.concatenate([self.mec_original_times[zeroed_mec == False], 
+            self.mec_original_times = np.concatenate([self.mec_original_times[zeroed_mec == False],
                                                       np.zeros(zeroed_mec.sum(), dtype=int)])
 
         zeroed_cloud = (self.cloud_proc_times == 1)
         if zeroed_cloud.any():
             done_comp = self.cloud_comp_units[zeroed_cloud].sum()
-            # 🆕 정확한 원본 처리 시간 사용
-            consumed_time = self.cloud_original_times[zeroed_cloud].sum()
-            self.reward += (done_comp - BETA*consumed_time)
-            # self.available_computation_units += done_comp
+            # Cloud 완료 시에도 done_comp만 반영 (latency 비용 제거)
+            self.reward += done_comp
             if self.network_state:
                 self.network_state.release_cloud_resource(done_comp)
-            self.cloud_proc_times = np.concatenate([self.cloud_proc_times[zeroed_cloud == False], 
+            self.cloud_proc_times = np.concatenate([self.cloud_proc_times[zeroed_cloud == False],
                                                     np.zeros(zeroed_cloud.sum(), dtype=int)])
-            self.cloud_comp_units = np.concatenate([self.cloud_comp_units[zeroed_cloud == False], 
+            self.cloud_comp_units = np.concatenate([self.cloud_comp_units[zeroed_cloud == False],
                                                     np.zeros(zeroed_cloud.sum(), dtype=int)])
-            self.cloud_original_times = np.concatenate([self.cloud_original_times[zeroed_cloud == False], 
+            self.cloud_original_times = np.concatenate([self.cloud_original_times[zeroed_cloud == False],
                                                         np.zeros(zeroed_cloud.sum(), dtype=int)])
 
         self.mec_proc_times = np.clip(self.mec_proc_times - 1, 0, self.max_proc_times)
         self.cloud_proc_times = np.clip(self.cloud_proc_times - 1, 0, self.max_proc_times)
 
-        # 에피소드 종료 시 미완료 작업에 대한 부분 보상
-        if self.remain_epochs == 0:
-            # MEC 미완료 작업
-            for i in range(len(self.mec_proc_times)):
-                if self.mec_proc_times[i] > 0 and self.mec_original_times[i] > 0:
-                    comp = self.mec_comp_units[i]
-                    original_time = self.mec_original_times[i]
-                    remaining_time = self.mec_proc_times[i]
-                    progress = (original_time - remaining_time) / original_time
-                    # 진행률에 비례한 부분 보상 (50% 가중치)
-                    self.reward += comp * progress * 0.5
-
-            # Cloud 미완료 작업
-            for i in range(len(self.cloud_proc_times)):
-                if self.cloud_proc_times[i] > 0 and self.cloud_original_times[i] > 0:
-                    comp = self.cloud_comp_units[i]
-                    original_time = self.cloud_original_times[i]
-                    remaining_time = self.cloud_proc_times[i]
-                    progress = (original_time - remaining_time) / original_time
-                    elapsed_time = original_time - remaining_time
-                    # 진행률 보상 - 경과 시간 비용
-                    self.reward += comp * progress * 0.5 - BETA * elapsed_time
+        # 에피소드 종료 시 미완료 작업은 보상 없음 (완료된 것만 반영)
+        # 부분 보상 제거
 
         next_obs = self.get_obs()
 

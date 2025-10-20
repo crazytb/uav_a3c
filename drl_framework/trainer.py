@@ -303,21 +303,15 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
                     flatten_dict_values(state), dtype=torch.float32, device=device
                 ).unsqueeze(0)  # (1, state_dim)
 
-                # --- (C-1) 1-step RNN 전파 및 행동 샘플 (액션 마스킹 적용) ---
+                # --- (C-1) 1-step RNN 전파 및 행동 샘플 (액션 마스킹 제거) ---
                 with torch.no_grad():
                     logits, value, hx = working_model.step(obs_tensor, hx)
-                    
-                    # 액션 마스킹 적용
-                    action_mask = env.get_action_mask()
-                    masked_logits = logits.clone()
-                    for i, valid in enumerate(action_mask):
-                        if not valid:
-                            masked_logits[0, i] = float('-inf')
-                    
-                    dist = Categorical(logits=masked_logits)
+
+                    # 액션 마스킹 제거: 모든 action을 시도 가능하도록 함
+                    dist = Categorical(logits=logits)
                     action = dist.sample()                      # (1,)
                     logp  = dist.log_prob(action)               # (1,)  # 저장은 이후 rollout 재계산에서 함
-                    probs = torch.softmax(masked_logits, dim=-1)       # (1, A)
+                    probs = torch.softmax(logits, dim=-1)       # (1, A)
                 last_probs_np = probs.detach().cpu().numpy()
 
                 # 환경 한 스텝
@@ -377,7 +371,8 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
                 x_seq=obs_seq_t, hx=hx_roll_start, done_seq=done_seq_t
             )  # (1,T,A), (1,T,1)
 
-            dist_seq = Categorical(logits=logits_seq)          # (1,T,A)
+            # 액션 마스킹 제거: 원본 logits로 학습
+            dist_seq = Categorical(logits=logits_seq)
             logp_seq = dist_seq.log_prob(act_seq_t)            # (1,T)
             entropy_seq = dist_seq.entropy()                   # (1,T)
 
@@ -705,17 +700,11 @@ def individual_worker(worker_id, env_fn, log_path, total_episodes,
 
                 with torch.no_grad():
                     logits, value, hx = local_model.step(obs_tensor, hx)
-                    
-                    # 액션 마스킹 적용
-                    action_mask = env.get_action_mask()
-                    masked_logits = logits.clone()
-                    for i, valid in enumerate(action_mask):
-                        if not valid:
-                            masked_logits[0, i] = float('-inf')
-                    
-                    dist = Categorical(logits=masked_logits)
+
+                    # 액션 마스킹 제거: 모든 action을 시도 가능하도록 함
+                    dist = Categorical(logits=logits)
                     action = dist.sample()
-                    probs = torch.softmax(masked_logits, dim=-1)       # (1, A)
+                    probs = torch.softmax(logits, dim=-1)       # (1, A)
                 last_probs_np = probs.detach().cpu().numpy()
 
                 next_state, reward, done, _, _ = env.step(action.item())
@@ -760,6 +749,7 @@ def individual_worker(worker_id, env_fn, log_path, total_episodes,
                     x_seq=obs_seq_t, hx=hx_roll_start, done_seq=done_seq_t
                 )
 
+                # 액션 마스킹 제거: 원본 logits로 학습
                 dist_seq = Categorical(logits=logits_seq)
                 logp_seq = dist_seq.log_prob(act_seq_t)
                 entropy_seq = dist_seq.entropy()

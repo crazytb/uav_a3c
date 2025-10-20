@@ -16,7 +16,7 @@ from drl_framework.params import *
 from torch.distributions import Categorical
 
 # 최신 학습 결과 타임스탬프
-TIMESTAMP = "20251008_013452"
+TIMESTAMP = "20251018_185651"
 
 # 환경 설정
 temp_env_fn = make_env(**ENV_PARAMS)
@@ -87,17 +87,18 @@ print("="*80)
 print()
 
 # 1. 학습 시 사용된 환경 (Seen environments)
-# 학습: velocity 5-20 km/h, comp_units 200
+# 학습: velocity 5-25 km/h, comp_units 200
+# Worker별로 5 + (25-5) * i / (n_workers-1) 공식으로 할당
 SEEN_COMP_UNITS = [200]
-SEEN_VELOCITIES = [5, 10, 15, 20]
+SEEN_VELOCITIES = [5, 10, 15, 20, 25]  # 실제 학습 velocity
 
 # 학습 시 각 Worker가 경험한 환경 조합 (comp_units는 고정 200)
 SEEN_ENVS = [
-    (200, 5),   # Worker 0
-    (200, 10),  # Worker 1
-    (200, 15),  # Worker 2
-    (200, 20),  # Worker 3
-    (200, 20),  # Worker 4 (중복)
+    (200, 5),      # Worker 0
+    (200, 10),     # Worker 1
+    (200, 15),     # Worker 2
+    (200, 20),     # Worker 3
+    (200, 25),     # Worker 4
 ]
 
 # 2. 테스트 환경 설정

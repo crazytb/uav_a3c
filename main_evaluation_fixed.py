@@ -14,7 +14,7 @@ import drl_framework.params as params
 import copy
 
 # 타임스탬프
-stamp = "20251008_013452"  # 예시 타임스탬프, 필요에 따라 변경
+stamp = "20251018_023558"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
@@ -30,12 +30,12 @@ state_dim = len(flatten_dict_values(sample_obs))
 action_dim = temp_env.action_space.n
 temp_env.close()
 
-# 평가용 환경 파라미터 리스트 (원본 로직 유지)
+# 평가용 환경 파라미터 리스트 (학습 시 사용된 환경과 동일하게 설정)
 env_param_list = []
-for _ in range(n_workers):
+for i in range(n_workers):
     e = copy.deepcopy(ENV_PARAMS)
-    # e["max_comp_units"] = np.random.randint(40, 161)
-    e["agent_velocities"] = np.random.randint(5, 20)
+    # 학습 시 사용된 velocity: 5 + (20-5) * i / (n_workers-1)
+    e["agent_velocities"] = int(5 + (20 - 5) * i / (n_workers - 1)) if n_workers > 1 else 10
     env_param_list.append(e)
 
 # @torch.no_grad()
