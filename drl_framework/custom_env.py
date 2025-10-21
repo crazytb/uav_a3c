@@ -261,9 +261,6 @@ class CustomEnv(gym.Env):
         else:
             raise ValueError("Invalid action")
         
-        # if not success:
-        #     self.reward -= FAILURE_PENALTY
-        
         # 새로운 작업 생성
         # self.queue_comp_units = self.rng.integers(1, self.max_comp_units + 1)
         self.queue_comp_units = self.rng.integers(1, 200)

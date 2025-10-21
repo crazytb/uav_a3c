@@ -18,7 +18,7 @@ log_dir = "logs"
 # ===== A3C 구조 관련 파라미터 =====
 n_workers = 5                  # 병렬 에이전트(worker) 수
 # update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 1000      # worker 당 총 에피소드 수
+target_episode_count = 5000      # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
@@ -37,7 +37,6 @@ REWARD_PARAMS = {
     'BETA': 0.5,               # 오프로드 시간 비용 계수
     'GAMMA': 2.0,              # 전송 지연 계수
     'REWARD_SCALE': 0.05,      # 보상 스케일링 (1/20) - 중간 값
-    'FAILURE_PENALTY': 5.0,    # 실패 시 패널티 (DISCARD에도 적용되어 시도를 유도)
     'ENERGY_COST_COEFF': 0.0,  # 에너지 비용 감소 (시도 유도)
     'CONGESTION_COST_COEFF': 0.1
 }

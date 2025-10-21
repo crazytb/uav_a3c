@@ -16,7 +16,7 @@ from drl_framework.params import *
 from torch.distributions import Categorical
 
 # 최신 학습 결과 타임스탬프
-TIMESTAMP = "20251018_185651"
+TIMESTAMP = "20251021_112839"
 
 # 환경 설정
 temp_env_fn = make_env(**ENV_PARAMS)
@@ -103,8 +103,8 @@ SEEN_ENVS = [
 
 # 2. 테스트 환경 설정
 # Seen 환경: 학습한 조합
-# Interpolation: 학습 범위 내의 새로운 조합
-# Extrapolation: 학습 범위 밖의 조합
+# intra: 학습 범위 내의 새로운 조합
+# extra: 학습 범위 밖의 조합
 
 TEST_SCENARIOS = []
 
@@ -243,7 +243,7 @@ print()
 print("[1] 환경 타입별 평균 성능")
 print("-"*80)
 
-for env_type in ['Seen', 'Interpolation', 'Extrapolation']:
+for env_type in ['Seen', 'Intra', 'Extra']:
     a3c_perf = df[(df['model'] == 'A3C_Global') & (df['env_type'] == env_type)]['mean_reward'].mean()
     ind_perf = df[(df['model'] != 'A3C_Global') & (df['env_type'] == env_type)]['mean_reward'].mean()
 
@@ -264,13 +264,13 @@ for worker_id in range(n_workers):
     seen_perf = worker_data[seen_mask]['mean_reward'].values[0] if seen_mask.any() else 0
 
     # 다른 환경 성능
-    interp_perf = worker_data[worker_data['env_type'] == 'Interpolation']['mean_reward'].mean()
-    extrap_perf = worker_data[worker_data['env_type'] == 'Extrapolation']['mean_reward'].mean()
+    interp_perf = worker_data[worker_data['env_type'] == 'Intra']['mean_reward'].mean()
+    extrap_perf = worker_data[worker_data['env_type'] == 'Extra']['mean_reward'].mean()
 
     print(f"Worker {worker_id} (trained on comp={trained_comp}, vel={trained_vel}):")
     print(f"  Seen         : {seen_perf:.3f}")
-    print(f"  Interpolation: {interp_perf:.3f} ({(interp_perf-seen_perf):+.3f})")
-    print(f"  Extrapolation: {extrap_perf:.3f} ({(extrap_perf-seen_perf):+.3f})")
+    print(f"  Intra: {interp_perf:.3f} ({(interp_perf-seen_perf):+.3f})")
+    print(f"  Extra: {extrap_perf:.3f} ({(extrap_perf-seen_perf):+.3f})")
 
 print()
 
