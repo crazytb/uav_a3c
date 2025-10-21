@@ -6,5 +6,8 @@ logs/
 tensorboard/
 runs/
 
+# Keep archived experiments (important simulation results)
+!archived_experiments/
+
 # Allow CSV files in the root directory
 !/*.csv

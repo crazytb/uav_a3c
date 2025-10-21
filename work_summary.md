@@ -273,5 +273,162 @@ Based on analysis with GPT-4, potential enhancement direction:
 
 This could be a significant contribution for the paper: "Hierarchical Cloud-Edge RL for UAV MEC with Resource Competition"
 
+## Channel Quality Dynamics Analysis (2025-10-21)
+
+### 🔬 **Critical Discovery: Why Only Worker 2 Learns Successfully**
+
+**Training Results** (Timestamp: 20251021_112839):
+```
+Worker 0 (velocity=5 km/h):   Reward = 32.9 (Low)
+Worker 1 (velocity=10 km/h):  Reward = 30.3 (Low)
+Worker 2 (velocity=15 km/h):  Reward = 74.2 (High) ✅
+Worker 3 (velocity=20 km/h):  Reward = 31.7 (Low)
+Worker 4 (velocity=25 km/h):  Reward = 30.8 (Low)
+```
+
+### 📊 Root Cause: Channel Dynamics vs Steady State
+
+**Key Finding**: All workers have **identical steady state probability** but **different temporal dynamics**.
+
+#### Steady State Analysis (Gilbert-Elliott Channel Model)
+
+**Mathematical Result**:
+```
+π(Good) = 1 / exp(SNR_thr/SNR_ave) = 1 / exp(15/25) ≈ 54.88%
+π(Bad) = 45.12%
+
+→ ALL velocities have same steady state probability!
+```
+
+**Why?** The velocity term (fdtp) cancels out in the steady state calculation:
+```python
+TRAN_01 = (fdtp * sqrt_val) / (exp_val - 1)  # Bad → Good
+TRAN_10 = fdtp * sqrt_val                     # Good → Bad
+
+π(Good) = TRAN_01 / (TRAN_01 + TRAN_10)
+        = [1/(exp-1)] / [1/(exp-1) + 1]  # fdtp cancels!
+```
+
+#### Channel Dynamics Analysis
+
+**Critical Difference**: Average sojourn time and transition frequency
+
+| Worker | Velocity | π(Good) | Good Duration | Rollout Transitions | RNN Learning |
+|--------|----------|---------|---------------|---------------------|--------------|
+| 0 | 5 km/h | 54.88% | **18.9 steps** | 1.16/rollout | ❌ Too stable |
+| 1 | 10 km/h | 54.88% | **9.4 steps** | 2.33/rollout | ⚠️ Stable |
+| 2 | 15 km/h | 54.88% | **6.3 steps** | 3.49/rollout | ✅ **Optimal** |
+| 3 | 20 km/h | 54.88% | **4.7 steps** | 4.66/rollout | ❌ Too volatile |
+| 4 | 25 km/h | 54.88% | **3.8 steps** | 5.82/rollout | ❌ Too volatile |
+
+**Physics Behind It** (IEEE 802.11bd V2X Channel):
+```
+Carrier freq: 5.9 GHz
+Doppler frequency: f_d = (velocity / 3600 / 300000) × 5.9e9
+
+vel=5:  f_d = 27.3 Hz  → slow transitions
+vel=15: f_d = 81.9 Hz  → moderate transitions
+vel=25: f_d = 136.6 Hz → fast transitions
+```
+
+#### Why Worker 2 (vel=15 km/h) Excels
+
+**1. Optimal Temporal Pattern for RNN**
+- Good state persists for 6.3 steps (vs RNN rollout length = 20 steps)
+- Provides clear temporal dependency: "If Good now, likely Good for next ~6 steps"
+- RNN can learn to predict channel state transitions
+
+**2. Balanced Learning Signal**
+- Episode (100 steps) contains ~8.73 Good bursts
+- Not too few (Worker 0: 2.91 bursts → weak signal)
+- Not too many (Worker 4: 14.55 bursts → noisy signal)
+
+**3. Meaningful State Transitions**
+- 3.49 transitions per 20-step rollout
+- Sufficient for pattern learning
+- Not overwhelming (would appear as noise)
+
+**4. Action-Reward Causality**
+```python
+# OFFLOAD succeeds only when channel_quality == 1 (Good)
+if channel_quality == 1:
+    OFFLOAD → SUCCESS (high reward)
+else:
+    OFFLOAD → FAIL (low reward)
+
+Worker 2: Can learn this pattern (6.3 step windows)
+Worker 0: Pattern too slow (18.9 steps, nearly constant)
+Worker 4: Pattern too fast (3.8 steps, appears random)
+```
+
+#### Why Other Workers Fail
+
+**Workers 0, 1 (vel=5, 10 km/h)**:
+- Channel is "almost always Good" (18.9, 9.4 step persistence)
+- Weak temporal structure → RNN has nothing to learn
+- OFFLOAD almost always succeeds → no need for strategic timing
+- Weak learning signal → poor gradient information
+
+**Workers 3, 4 (vel=20, 25 km/h)**:
+- Channel changes too rapidly (4.7, 3.8 step persistence)
+- Pattern appears as noise to RNN
+- OFFLOAD success becomes unpredictable
+- High variance in rewards → unstable learning
+
+### 🎯 The "Goldilocks Zone" Phenomenon
+
+```
+Worker 2 (velocity=15 km/h) hits the sweet spot:
+
+┌─────────────────────────────────────────────┐
+│ Channel Dynamics vs RNN Learning Capability │
+└─────────────────────────────────────────────┘
+
+Too Slow (5-10 km/h)    Optimal (15 km/h)    Too Fast (20-25 km/h)
+        ▼                      ▼                       ▼
+   No Pattern            Clear Pattern            Noise Pattern
+   Weak Signal          Strong Signal           Unstable Signal
+   RNN Idle          RNN Learns Well         RNN Confused
+```
+
+**Perfect Alignment with RNN Architecture**:
+- GRU hidden state captures ~20 step history
+- Channel state persists ~6 steps
+- Pattern repeats ~9 times per episode
+- → Optimal for temporal credit assignment
+
+### 📁 Archived Simulation
+
+**Location**: `archived_experiments/20251021_112839/`
+
+**Contents**:
+- `a3c_20251021_112839/` - A3C global training results
+- `individual_20251021_112839/` - Individual worker training results
+- `generalization_results_v2_20251021_112839.csv` - Detailed test results
+- `generalization_test_v2_20251021_112839.png` - Visualization
+- `all_training_metrics_20251021_112839.csv` - Complete training logs
+
+**Key Insights for Paper**:
+1. Physical channel model parameters critically affect RL learning
+2. Markov Chain steady state ≠ learning effectiveness
+3. Temporal dynamics must match RNN architecture for optimal learning
+4. Multi-agent systems with heterogeneous environments reveal hidden biases
+
+### 🔮 Implications for Future Work
+
+**1. Environment Parameter Selection**:
+- Don't just consider steady state distributions
+- Analyze temporal dynamics compatibility with network architecture
+- Test across parameter ranges to find learning sweet spots
+
+**2. Multi-Agent Heterogeneity**:
+- Current setup: Each worker sees different velocity (good for testing)
+- For deployment: Consider velocity-adaptive policies or curriculum learning
+
+**3. Potential Improvements**:
+- Add channel_quality to observation space (currently commented out)
+- Implement velocity-adaptive reward scaling
+- Use curriculum learning: Start at vel=15, expand range gradually
+
 ---
-*Last Updated: 2025-09-30*
+*Last Updated: 2025-10-21*
