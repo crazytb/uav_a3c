@@ -16,7 +16,7 @@ from drl_framework.params import *
 from torch.distributions import Categorical
 
 # 최신 학습 결과 타임스탬프
-TIMESTAMP = "20251021_112839"
+TIMESTAMP = "20251021_153805"
 
 # 환경 설정
 temp_env_fn = make_env(**ENV_PARAMS)
