@@ -2,8 +2,72 @@
 일반화 성능 테스트 v2: max_comp_units + agent_velocities
 - A3C Global vs Individual Workers
 - 2D 환경 공간에서 일반화 성능 테스트
+- 지원: runs 폴더 또는 archived_experiments 폴더에서 모델 선택
 """
 
+import argparse
+import os
+import glob
+
+# ========================================
+# Command-line argument parsing (먼저 처리)
+# ========================================
+parser = argparse.ArgumentParser(description='Generalization Performance Test v2')
+parser.add_argument('--source', type=str, choices=['runs', 'archived'], default='runs',
+                    help='Source folder: "runs" or "archived" (archived_experiments)')
+parser.add_argument('--timestamp', type=str, default=None,
+                    help='Specific timestamp to evaluate (e.g., 20251021_153805)')
+parser.add_argument('--list', action='store_true',
+                    help='List available experiments and exit')
+args = parser.parse_args()
+
+# ========================================
+# Experiment selection logic
+# ========================================
+def list_available_experiments():
+    """사용 가능한 실험 목록 출력"""
+    print("=" * 80)
+    print("Available Experiments")
+    print("=" * 80)
+    print()
+
+    # Check runs folder
+    print("[1] runs/ folder:")
+    runs_a3c = sorted(glob.glob('runs/a3c_*'))
+    runs_timestamps = [os.path.basename(p).replace('a3c_', '') for p in runs_a3c]
+    if runs_timestamps:
+        for ts in runs_timestamps:
+            print(f"  - {ts}")
+    else:
+        print("  (no experiments found)")
+    print()
+
+    # Check archived_experiments folder
+    print("[2] archived_experiments/ folder:")
+    archived_dirs = sorted(glob.glob('archived_experiments/*/'))
+    archived_timestamps = [os.path.basename(os.path.dirname(p)) for p in archived_dirs if os.path.isdir(p)]
+    if archived_timestamps:
+        for ts in archived_timestamps:
+            # Check if models exist
+            a3c_path = f"archived_experiments/{ts}/a3c_{ts}/models/global_final.pth"
+            if os.path.exists(a3c_path):
+                print(f"  - {ts}")
+    else:
+        print("  (no experiments found)")
+    print()
+    print("=" * 80)
+    print("Usage:")
+    print("  python test_generalization_v2.py --source runs --timestamp <timestamp>")
+    print("  python test_generalization_v2.py --source archived --timestamp <timestamp>")
+    print("=" * 80)
+
+if args.list:
+    list_available_experiments()
+    exit(0)
+
+# ========================================
+# 필요한 모듈 임포트 (--list 이후)
+# ========================================
 import torch
 import numpy as np
 import pandas as pd
@@ -13,10 +77,65 @@ from drl_framework.networks import RecurrentActorCritic
 from drl_framework.custom_env import make_env
 from drl_framework.utils import flatten_dict_values
 from drl_framework.params import *
-from torch.distributions import Categorical
 
-# 최신 학습 결과 타임스탬프
-TIMESTAMP = "20251021_153805"
+# Determine base path and timestamp
+if args.source == 'runs':
+    base_folder = 'runs'
+    if args.timestamp is None:
+        # Auto-detect latest timestamp
+        runs_a3c = sorted(glob.glob('runs/a3c_*'))
+        if not runs_a3c:
+            print("[ERROR] No experiments found in runs/ folder")
+            print("Use --list to see available experiments")
+            exit(1)
+        TIMESTAMP = os.path.basename(runs_a3c[-1]).replace('a3c_', '')
+        print(f"[Auto-detected] Using latest timestamp: {TIMESTAMP}")
+    else:
+        TIMESTAMP = args.timestamp
+
+    A3C_MODEL_PATH = f"runs/a3c_{TIMESTAMP}/models/global_final.pth"
+    IND_MODEL_PATH_TEMPLATE = f"runs/individual_{TIMESTAMP}/models/individual_worker_{{worker_id}}_final.pth"
+
+else:  # archived
+    base_folder = 'archived_experiments'
+    if args.timestamp is None:
+        # Auto-detect latest timestamp
+        archived_dirs = sorted(glob.glob('archived_experiments/*/'))
+        valid_timestamps = []
+        for d in archived_dirs:
+            ts = os.path.basename(os.path.dirname(d))
+            a3c_path = f"archived_experiments/{ts}/a3c_{ts}/models/global_final.pth"
+            if os.path.exists(a3c_path):
+                valid_timestamps.append(ts)
+
+        if not valid_timestamps:
+            print("[ERROR] No valid experiments found in archived_experiments/ folder")
+            print("Use --list to see available experiments")
+            exit(1)
+
+        TIMESTAMP = valid_timestamps[-1]
+        print(f"[Auto-detected] Using latest archived timestamp: {TIMESTAMP}")
+    else:
+        TIMESTAMP = args.timestamp
+
+    A3C_MODEL_PATH = f"archived_experiments/{TIMESTAMP}/a3c_{TIMESTAMP}/models/global_final.pth"
+    IND_MODEL_PATH_TEMPLATE = f"archived_experiments/{TIMESTAMP}/individual_{TIMESTAMP}/models/individual_worker_{{worker_id}}_final.pth"
+
+# Validate model paths exist
+if not os.path.exists(A3C_MODEL_PATH):
+    print(f"[ERROR] A3C model not found: {A3C_MODEL_PATH}")
+    print("Use --list to see available experiments")
+    exit(1)
+
+print()
+print("=" * 80)
+print(f"Experiment Configuration")
+print("=" * 80)
+print(f"  Source    : {args.source}")
+print(f"  Timestamp : {TIMESTAMP}")
+print(f"  A3C Model : {A3C_MODEL_PATH}")
+print("=" * 80)
+print()
 
 # 환경 설정
 temp_env_fn = make_env(**ENV_PARAMS)
@@ -29,7 +148,7 @@ temp_env.close()
 def load_model(model_path):
     """모델 로드 (메타데이터 자동 처리)"""
     model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
-    checkpoint = torch.load(model_path, map_location=device)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
 
     if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
         model.load_state_dict(checkpoint['model_state_dict'])
@@ -162,9 +281,8 @@ print()
 results = []
 
 # A3C Global 모델
-a3c_model_path = f"runs/a3c_{TIMESTAMP}/models/global_final.pth"
 print(f"[1/6] A3C Global 모델 로드 중...")
-a3c_model = load_model(a3c_model_path)
+a3c_model = load_model(A3C_MODEL_PATH)
 
 for idx, scenario in enumerate(TEST_SCENARIOS):
     comp = scenario['comp_units']
@@ -196,7 +314,7 @@ print()
 # Individual Workers (각 워커별)
 for worker_id in range(n_workers):
     trained_comp, trained_vel = SEEN_ENVS[worker_id]
-    ind_model_path = f"runs/individual_{TIMESTAMP}/models/individual_worker_{worker_id}_final.pth"
+    ind_model_path = IND_MODEL_PATH_TEMPLATE.format(worker_id=worker_id)
 
     print(f"[{2+worker_id}/6] Individual Worker {worker_id} (trained on comp={trained_comp}, vel={trained_vel}) 로드 중...")
     ind_model = load_model(ind_model_path)
@@ -354,13 +472,13 @@ ax2.set_ylabel('agent_velocities')
 #     ax.set_xlabel('max_comp_units', fontsize=9)
 #     ax.set_ylabel('agent_velocities', fontsize=9)
 
-output_path = f'generalization_test_v2_{TIMESTAMP}.png'
+output_path = f'generalization_test_v2_{args.source}_{TIMESTAMP}.png'
 plt.savefig(output_path, dpi=180, bbox_inches='tight')
 print(f"[Visualization saved] {output_path}")
 print()
 
 # Save CSV results
-csv_output = f'generalization_results_v2_{TIMESTAMP}.csv'
+csv_output = f'generalization_results_v2_{args.source}_{TIMESTAMP}.csv'
 df.to_csv(csv_output, index=False)
 print(f"[Results saved] {csv_output}")
 print()

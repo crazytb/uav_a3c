@@ -32,7 +32,7 @@ for i in range(n_workers):
 # Do action masking!!
 if __name__ == "__main__":
     train(n_workers=n_workers,
-          total_episodes=int(target_episode_count/n_workers),
+          total_episodes=target_episode_count,
           env_param_list=env_param_list)
     train_individual(n_workers=n_workers,
                      total_episodes=target_episode_count,
