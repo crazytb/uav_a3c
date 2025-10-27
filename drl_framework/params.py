@@ -18,7 +18,7 @@ log_dir = "logs"
 # ===== A3C 구조 관련 파라미터 =====
 n_workers = 5                  # 병렬 에이전트(worker) 수
 # update_interval = 10            # 몇 스텝마다 global model을 업데이트할지
-target_episode_count = 5000      # worker 당 총 에피소드 수
+target_episode_count = 2000      # worker 당 총 에피소드 수
 
 # Env params
 ENV_PARAMS = {
@@ -48,6 +48,9 @@ value_loss_coef = 0.25          # value loss 가중치 - 중간 값 (안정성�
 lr = 1e-4                       # learning rate (적절한 학습 속도 유지)
 max_grad_norm = 2.0             # gradient clipping 임계값 (5.0 -> 2.0, 안정화와 학습 속도의 균형)
 hidden_dim = 128               # hidden layer 노드 수
+
+# ===== 네트워크 구조 관련 파라미터 =====
+use_layer_norm = False         # Layer Normalization 사용 여부 (비교 실험: False)
 
 # Set parameters
 batch_size = 1

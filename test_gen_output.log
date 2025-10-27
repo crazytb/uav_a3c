@@ -1,0 +1,187 @@
+
+================================================================================
+Experiment Configuration
+================================================================================
+  Source    : runs
+  Timestamp : 20251027_141324
+  A3C Model : runs/a3c_20251027_141324/models/global_final.pth
+================================================================================
+
+================================================================================
+=== 일반화 성능 테스트 v2: max_comp_units + agent_velocities ===
+================================================================================
+
+총 테스트 시나리오: 18개
+  - Seen : 5
+  - Intra: 6
+  - Extra: 7
+
+[1/6] A3C Global 모델 로드 중...
+  [1/18] Testing (comp=200, vel=5, Seen)... Reward: 100.52
+  [2/18] Testing (comp=200, vel=10, Seen)... Reward: 101.62
+  [3/18] Testing (comp=200, vel=15, Seen)... Reward: 103.33
+  [4/18] Testing (comp=200, vel=20, Seen)... Reward: 102.91
+  [5/18] Testing (comp=200, vel=25, Seen)... Reward: 101.90
+  [6/18] Testing (comp=200, vel=7, Intra)... Reward: 98.67
+  [7/18] Testing (comp=200, vel=12, Intra)... Reward: 104.77
+  [8/18] Testing (comp=200, vel=17, Intra)... Reward: 101.86
+  [9/18] Testing (comp=200, vel=25, Intra)... Reward: 104.29
+  [10/18] Testing (comp=200, vel=30, Intra)... Reward: 105.05
+  [11/18] Testing (comp=200, vel=35, Intra)... Reward: 102.00
+  [12/18] Testing (comp=100, vel=25, Extra)... Reward: 58.88
+  [13/18] Testing (comp=100, vel=30, Extra)... Reward: 58.04
+  [14/18] Testing (comp=150, vel=25, Extra)... Reward: 80.19
+  [15/18] Testing (comp=150, vel=30, Extra)... Reward: 82.20
+  [16/18] Testing (comp=150, vel=35, Extra)... Reward: 81.61
+  [17/18] Testing (comp=100, vel=10, Extra)... Reward: 60.63
+  [18/18] Testing (comp=150, vel=15, Extra)... Reward: 79.91
+
+[2/6] Individual Worker 0 (trained on comp=200, vel=5) 로드 중...
+  [1/18] Testing (comp=200, vel=5, Seen)... Reward: 57.99
+  [2/18] Testing (comp=200, vel=10, Seen)... Reward: 66.81
+  [3/18] Testing (comp=200, vel=15, Seen)... Reward: 59.93
+  [4/18] Testing (comp=200, vel=20, Seen)... Reward: 64.57
+  [5/18] Testing (comp=200, vel=25, Seen)... Reward: 65.89
+  [6/18] Testing (comp=200, vel=7, Intra)... Reward: 63.86
+  [7/18] Testing (comp=200, vel=12, Intra)... Reward: 67.30
+  [8/18] Testing (comp=200, vel=17, Intra)... Reward: 62.72
+  [9/18] Testing (comp=200, vel=25, Intra)... Reward: 70.08
+  [10/18] Testing (comp=200, vel=30, Intra)... Reward: 69.52
+  [11/18] Testing (comp=200, vel=35, Intra)... Reward: 67.62
+  [12/18] Testing (comp=100, vel=25, Extra)... Reward: 23.51
+  [13/18] Testing (comp=100, vel=30, Extra)... Reward: 24.91
+  [14/18] Testing (comp=150, vel=25, Extra)... Reward: 44.47
+  [15/18] Testing (comp=150, vel=30, Extra)... Reward: 45.96
+  [16/18] Testing (comp=150, vel=35, Extra)... Reward: 50.45
+  [17/18] Testing (comp=100, vel=10, Extra)... Reward: 21.82
+  [18/18] Testing (comp=150, vel=15, Extra)... Reward: 45.78
+
+[3/6] Individual Worker 1 (trained on comp=200, vel=10) 로드 중...
+  [1/18] Testing (comp=200, vel=5, Seen)... Reward: 40.26
+  [2/18] Testing (comp=200, vel=10, Seen)... Reward: 34.48
+  [3/18] Testing (comp=200, vel=15, Seen)... Reward: 37.82
+  [4/18] Testing (comp=200, vel=20, Seen)... Reward: 42.47
+  [5/18] Testing (comp=200, vel=25, Seen)... Reward: 41.06
+  [6/18] Testing (comp=200, vel=7, Intra)... Reward: 39.74
+  [7/18] Testing (comp=200, vel=12, Intra)... Reward: 34.11
+  [8/18] Testing (comp=200, vel=17, Intra)... Reward: 41.22
+  [9/18] Testing (comp=200, vel=25, Intra)... Reward: 38.33
+  [10/18] Testing (comp=200, vel=30, Intra)... Reward: 37.71
+  [11/18] Testing (comp=200, vel=35, Intra)... Reward: 40.38
+  [12/18] Testing (comp=100, vel=25, Extra)... Reward: 20.93
+  [13/18] Testing (comp=100, vel=30, Extra)... Reward: 23.72
+  [14/18] Testing (comp=150, vel=25, Extra)... Reward: 31.15
+  [15/18] Testing (comp=150, vel=30, Extra)... Reward: 31.05
+  [16/18] Testing (comp=150, vel=35, Extra)... Reward: 30.14
+  [17/18] Testing (comp=100, vel=10, Extra)... Reward: 22.02
+  [18/18] Testing (comp=150, vel=15, Extra)... Reward: 29.40
+
+[4/6] Individual Worker 2 (trained on comp=200, vel=15) 로드 중...
+  [1/18] Testing (comp=200, vel=5, Seen)... Reward: 32.13
+  [2/18] Testing (comp=200, vel=10, Seen)... Reward: 30.44
+  [3/18] Testing (comp=200, vel=15, Seen)... Reward: 31.86
+  [4/18] Testing (comp=200, vel=20, Seen)... Reward: 30.83
+  [5/18] Testing (comp=200, vel=25, Seen)... Reward: 31.54
+  [6/18] Testing (comp=200, vel=7, Intra)... Reward: 30.59
+  [7/18] Testing (comp=200, vel=12, Intra)... Reward: 29.91
+  [8/18] Testing (comp=200, vel=17, Intra)... Reward: 31.62
+  [9/18] Testing (comp=200, vel=25, Intra)... Reward: 29.95
+  [10/18] Testing (comp=200, vel=30, Intra)... Reward: 31.58
+  [11/18] Testing (comp=200, vel=35, Intra)... Reward: 31.55
+  [12/18] Testing (comp=100, vel=25, Extra)... Reward: 14.44
+  [13/18] Testing (comp=100, vel=30, Extra)... Reward: 14.05
+  [14/18] Testing (comp=150, vel=25, Extra)... Reward: 23.96
+  [15/18] Testing (comp=150, vel=30, Extra)... Reward: 20.86
+  [16/18] Testing (comp=150, vel=35, Extra)... Reward: 24.40
+  [17/18] Testing (comp=100, vel=10, Extra)... Reward: 14.32
+  [18/18] Testing (comp=150, vel=15, Extra)... Reward: 21.92
+
+[5/6] Individual Worker 3 (trained on comp=200, vel=20) 로드 중...
+  [1/18] Testing (comp=200, vel=5, Seen)... Reward: 35.42
+  [2/18] Testing (comp=200, vel=10, Seen)... Reward: 33.45
+  [3/18] Testing (comp=200, vel=15, Seen)... Reward: 35.06
+  [4/18] Testing (comp=200, vel=20, Seen)... Reward: 32.96
+  [5/18] Testing (comp=200, vel=25, Seen)... Reward: 34.16
+  [6/18] Testing (comp=200, vel=7, Intra)... Reward: 34.01
+  [7/18] Testing (comp=200, vel=12, Intra)... Reward: 34.12
+  [8/18] Testing (comp=200, vel=17, Intra)... Reward: 33.29
+  [9/18] Testing (comp=200, vel=25, Intra)... Reward: 34.93
+  [10/18] Testing (comp=200, vel=30, Intra)... Reward: 34.20
+  [11/18] Testing (comp=200, vel=35, Intra)... Reward: 33.23
+  [12/18] Testing (comp=100, vel=25, Extra)... Reward: 15.12
+  [13/18] Testing (comp=100, vel=30, Extra)... Reward: 14.46
+  [14/18] Testing (comp=150, vel=25, Extra)... Reward: 24.44
+  [15/18] Testing (comp=150, vel=30, Extra)... Reward: 26.57
+  [16/18] Testing (comp=150, vel=35, Extra)... Reward: 24.66
+  [17/18] Testing (comp=100, vel=10, Extra)... Reward: 14.64
+  [18/18] Testing (comp=150, vel=15, Extra)... Reward: 25.98
+
+[6/6] Individual Worker 4 (trained on comp=200, vel=25) 로드 중...
+  [1/18] Testing (comp=200, vel=5, Seen)... Reward: 32.83
+  [2/18] Testing (comp=200, vel=10, Seen)... Reward: 33.94
+  [3/18] Testing (comp=200, vel=15, Seen)... Reward: 33.59
+  [4/18] Testing (comp=200, vel=20, Seen)... Reward: 33.16
+  [5/18] Testing (comp=200, vel=25, Seen)... Reward: 33.89
+  [6/18] Testing (comp=200, vel=7, Intra)... Reward: 34.41
+  [7/18] Testing (comp=200, vel=12, Intra)... Reward: 33.65
+  [8/18] Testing (comp=200, vel=17, Intra)... Reward: 33.87
+  [9/18] Testing (comp=200, vel=25, Intra)... Reward: 32.61
+  [10/18] Testing (comp=200, vel=30, Intra)... Reward: 32.63
+  [11/18] Testing (comp=200, vel=35, Intra)... Reward: 31.77
+  [12/18] Testing (comp=100, vel=25, Extra)... Reward: 14.39
+  [13/18] Testing (comp=100, vel=30, Extra)... Reward: 14.78
+  [14/18] Testing (comp=150, vel=25, Extra)... Reward: 22.86
+  [15/18] Testing (comp=150, vel=30, Extra)... Reward: 24.29
+  [16/18] Testing (comp=150, vel=35, Extra)... Reward: 25.25
+  [17/18] Testing (comp=100, vel=10, Extra)... Reward: 14.89
+  [18/18] Testing (comp=150, vel=15, Extra)... Reward: 25.62
+
+================================================================================
+=== 일반화 성능 분석 ===
+================================================================================
+
+[1] 환경 타입별 평균 성능
+--------------------------------------------------------------------------------
+Seen           : A3C=102.058, Individual=40.261, Δ=+61.797
+Intra          : A3C=102.773, Individual=40.684, Δ=+62.089
+Extra          : A3C=71.636, Individual=24.777, Δ=+46.859
+
+[2] Individual Worker별 일반화 성능
+--------------------------------------------------------------------------------
+Worker 0 (trained on comp=200, vel=5):
+  Seen         : 57.985
+  Intra: 66.851 (+8.866)
+  Extra: 36.699 (-21.286)
+Worker 1 (trained on comp=200, vel=10):
+  Seen         : 34.477
+  Intra: 38.581 (+4.105)
+  Extra: 26.917 (-7.560)
+Worker 2 (trained on comp=200, vel=15):
+  Seen         : 31.862
+  Intra: 30.867 (-0.995)
+  Extra: 19.135 (-12.727)
+Worker 3 (trained on comp=200, vel=20):
+  Seen         : 32.957
+  Intra: 33.963 (+1.006)
+  Extra: 20.839 (-12.118)
+Worker 4 (trained on comp=200, vel=25):
+  Seen         : 33.888
+  Intra: 33.156 (-0.732)
+  Extra: 20.295 (-13.594)
+
+[3] 최악/최고 성능 시나리오
+--------------------------------------------------------------------------------
+A3C_Global:
+  최악: comp=100, vel=30, reward=58.037, type=Extra
+  최고: comp=200, vel=30, reward=105.050, type=Intra
+Individual:
+  최악: comp=100, vel=30, reward=14.048, type=Extra
+  최고: comp=200, vel=25, reward=70.080, type=Intra
+
+[Visualization saved] generalization_test_v2_runs_20251027_141324.png
+
+[Results saved] generalization_results_v2_runs_20251027_141324.csv
+
+================================================================================
+Generalization Performance Test v2 Complete!
+================================================================================

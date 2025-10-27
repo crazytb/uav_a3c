@@ -31,6 +31,7 @@ ENV_PARAMS = params.ENV_PARAMS
 REWARD_PARAMS = params.REWARD_PARAMS
 hidden_dim = params.hidden_dim
 n_workers = params.n_workers
+use_layer_norm = params.use_layer_norm  # Layer Normalization 설정
 
 # 임시 env로 상태/행동 차원 파악
 temp_env_fn = make_env(**ENV_PARAMS)
@@ -57,8 +58,8 @@ def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, r
     환경 내부 상태는 그대로 유지되어 안정적이다.
     """
     # 모델 로드 (RNN)
-    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
-    sd = torch.load(model_path, map_location=device)
+    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+    sd = torch.load(model_path, map_location=device, weights_only=False)
     try:
         model.load_state_dict(sd, strict=True)
     except Exception as e:
@@ -135,8 +136,8 @@ def collect_feature_buffers(model_path, env_kwargs, keys=None, n_episodes=30, gr
     rng = np.random.default_rng(seed)
 
     # 모델 로드 (평가 전파만)
-    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
-    sd = torch.load(model_path, map_location=device)
+    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+    sd = torch.load(model_path, map_location=device, weights_only=False)
     try:
         model.load_state_dict(sd)
     except Exception as e:
@@ -203,8 +204,8 @@ def collect_feature_buffers_ep(model_path, env_kwargs, keys=None, n_episodes=30,
     rng = np.random.default_rng(seed)
 
     # 모델 로드
-    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
-    sd = torch.load(model_path, map_location=device)
+    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+    sd = torch.load(model_path, map_location=device, weights_only=False)
     try:
         model.load_state_dict(sd, strict=True)
     except Exception:
@@ -468,7 +469,7 @@ def load_weights_compat(model, raw_state_dict, *,
     # 1) extract actual state_dict
     sd = raw_state_dict
     if isinstance(sd, str):
-        sd = torch.load(sd, map_location="cpu")
+        sd = torch.load(sd, map_location="cpu", weights_only=False)
     if isinstance(sd, dict) and "state_dict" in sd and isinstance(sd["state_dict"], dict):
         sd = sd["state_dict"]
 
@@ -645,8 +646,8 @@ def collect_policy_dataset(model_path, env_kwargs, n_episodes=200, greedy=True):
     rows[i] = { 'obs': <obs_dict>, 'p1': P(a=1), 'a': action(int) }
     """
     # 모델 로드
-    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
-    sd = torch.load(model_path, map_location=device)
+    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+    sd = torch.load(model_path, map_location=device, weights_only=False)
     try:
         model.load_state_dict(sd, strict=True)
     except Exception:
@@ -747,8 +748,8 @@ def gradient_importance(model_path, env_kwargs, sample_steps=2048, greedy=True):
     값이 클수록 현재 시점의 의사결정에 민감.
     """
     # 모델 로드
-    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
-    sd = torch.load(model_path, map_location=device)
+    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+    sd = torch.load(model_path, map_location=device, weights_only=False)
     try:
         model.load_state_dict(sd, strict=True)
     except Exception:

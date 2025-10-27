@@ -14,13 +14,14 @@ import drl_framework.params as params
 import copy
 
 # 타임스탬프
-stamp = "20251021_112839"  # 예시 타임스탬프, 필요에 따라 변경
+stamp = "20251027_141324"  # 예시 타임스탬프, 필요에 따라 변경
 
 device = params.device
 ENV_PARAMS = params.ENV_PARAMS
 REWARD_PARAMS = params.REWARD_PARAMS
 hidden_dim = params.hidden_dim
 n_workers = params.n_workers
+use_layer_norm = params.use_layer_norm  # Layer Normalization 설정
 
 # 임시 env로 상태/행동 차원 파악
 temp_env_fn = make_env(**ENV_PARAMS)
@@ -41,10 +42,11 @@ for i in range(n_workers):
 # @torch.no_grad()
 def evaluate_model_on_env(model_path, env_kwargs, n_episodes=100, greedy=True, render=False, log_actions=False, log_prefix=""):
     """단일 환경에서 모델 평가 및 액션 로깅"""
-    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
+    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
 
     # .pth 파일 로드 (메타데이터 포함 여부 자동 처리)
-    checkpoint = torch.load(model_path, map_location=device)
+    # PyTorch 2.6+ 호환성: weights_only=False 추가 (신뢰할 수 있는 모델 파일)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
         # 메타데이터 포함된 경우
         model.load_state_dict(checkpoint['model_state_dict'])

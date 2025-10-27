@@ -147,7 +147,7 @@ temp_env.close()
 
 def load_model(model_path):
     """모델 로드 (메타데이터 자동 처리)"""
-    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim).to(device)
+    model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
     checkpoint = torch.load(model_path, map_location=device, weights_only=False)
 
     if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
