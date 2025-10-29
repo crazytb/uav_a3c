@@ -11,3 +11,16 @@ runs/
 
 # Allow CSV files in the root directory
 !/*.csv
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ablation study results (too large for git)
+ablation_results/
+generalization_results_*/
+
+# Log files
+*.log
+*_pid.txt
