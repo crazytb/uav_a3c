@@ -1,0 +1,22 @@
+\begin{table}[t]
+\centering
+\caption{Generalization Performance Comparison of A3C Configurations}
+\label{tab:ablation_results}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Configuration} & \textbf{A3C} & \textbf{Individual} & \textbf{Gap} & \textbf{Gap \%} & \textbf{A3C Worst} & \textbf{Ind Worst} \\
+\midrule
+Baseline (RNN+LN, 5w) & 49.57 $\pm$ 14.35 & 38.22 $\pm$ 16.24 & +11.35 & \textbf{29.7\%} & 31.72 & 1.25 \\
+Few Workers (3) & 44.13 $\pm$ 8.50 & 43.19 $\pm$ 14.95 & +0.94 & \textbf{2.2\%} & 32.27 & 4.97 \\
+Many Workers (10) & 50.17 $\pm$ 13.04 & 42.95 $\pm$ 13.71 & +7.22 & \textbf{16.8\%} & 29.39 & 2.69 \\
+No RNN (LN only) & 52.94 $\pm$ 19.31 & 46.76 $\pm$ 10.14 & +6.18 & \textbf{13.2\%} & 32.18 & 29.11 \\
+No LayerNorm (RNN only) & 50.58 $\pm$ 18.27 & 39.58 $\pm$ 17.97 & +11.00 & \textbf{27.8\%} & 30.29 & 0.00 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\small
+\item Performance measured on velocity sweep (5-100 km/h, 9 velocities, 100 episodes per velocity).
+\item Baseline configuration: 5 workers, RNN with LayerNorm, hidden dimension 128.
+\item \textbf{Gap \%}: Percentage improvement of A3C over Individual learning.
+\end{tablenotes}
+\end{table}

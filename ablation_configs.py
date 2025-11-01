@@ -15,7 +15,7 @@ BASELINE_CONFIG = {
     'lr': 1e-4,
     'max_grad_norm': 2.0,
     'n_workers': 5,
-    'target_episode_count': 5000,
+    'target_episode_count': 2000,
     'max_comp_units_for_cloud': 1000,
     'agent_velocities': 50,  # 기본값 (각 worker는 5~25로 분산됨)
     'reward_scale': 0.05,
