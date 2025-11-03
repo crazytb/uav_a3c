@@ -7,8 +7,7 @@ import threading
 import datetime as dt
 import pandas as pd
 import os, csv, time, queue
-# from .networks import ActorCritic
-from .networks import RecurrentActorCritic
+from .networks import ActorCritic, RecurrentActorCritic
 from .network_state import NetworkState
 from .params import *
 from .custom_env import make_env
@@ -253,9 +252,12 @@ def universal_worker(worker_id, model, optimizer, env_fn, log_path,
     torch.manual_seed(123 + worker_id)
     env = env_fn()
 
-    # --- (A) 로컬/글로벌 모델 준비 (RNN) ---
+    # --- (A) 로컬/글로벌 모델 준비 ---
     if use_global_model:
-        local_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+        if use_recurrent:
+            local_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+        else:
+            local_model = ActorCritic(state_dim, action_dim, hidden_dim).to(device)
         local_model.load_state_dict(model.state_dict())
         working_model = local_model
     else:
@@ -479,7 +481,10 @@ def train(n_workers, total_episodes, env_param_list=None):
     # 공통 CSV 경로
     agg_csv = os.path.join(logs_dir, "training_log.csv")
 
-    global_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm)
+    if use_recurrent:
+        global_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm)
+    else:
+        global_model = ActorCritic(state_dim, action_dim, hidden_dim)
     global_model.share_memory()
     global_model = global_model.to(device)
     optimizer = SharedAdam(global_model.parameters(), lr=lr)
@@ -663,7 +668,10 @@ def individual_worker(worker_id, env_fn, log_path, total_episodes,
     env = env_fn()
 
     # 개별 모델 생성 (공유하지 않음)
-    local_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+    if use_recurrent:
+        local_model = RecurrentActorCritic(state_dim, action_dim, hidden_dim, use_layer_norm=use_layer_norm).to(device)
+    else:
+        local_model = ActorCritic(state_dim, action_dim, hidden_dim).to(device)
     optimizer = torch.optim.Adam(local_model.parameters(), lr=lr)
 
     global_step = 0

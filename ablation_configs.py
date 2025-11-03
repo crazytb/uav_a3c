@@ -40,6 +40,15 @@ ARCHITECTURE_ABLATIONS = {
         'priority': 'high',
     },
 
+    'ablation_neither_rnn_nor_ln': {
+        'name': 'ablation_neither_rnn_nor_ln',
+        'description': 'Remove both RNN and LayerNorm (feedforward only)',
+        'use_recurrent': False,
+        'use_layer_norm': False,
+        'phase': 1,
+        'priority': 'high',
+    },
+
     'ablation_3_small_hidden': {
         'name': 'ablation_3_small_hidden',
         'description': 'Reduce hidden dimension to 64',

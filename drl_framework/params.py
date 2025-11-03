@@ -50,7 +50,8 @@ max_grad_norm = 2.0             # gradient clipping 임계값 (5.0 -> 2.0, 안�
 hidden_dim = 128               # hidden layer 노드 수
 
 # ===== 네트워크 구조 관련 파라미터 =====
-use_layer_norm = False         # Layer Normalization 사용 여부 (비교 실험: False)
+use_recurrent = False           # RNN 사용 여부 (True: RecurrentActorCritic, False: ActorCritic)
+use_layer_norm = False          # Layer Normalization 사용 여부 (비교 실험: False, RNN 사용시에만 적용)
 
 # Set parameters
 batch_size = 1

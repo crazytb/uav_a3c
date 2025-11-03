@@ -16,6 +16,7 @@ class ActorCritic(nn.Module):
         self.policy = nn.Linear(hidden_dim, action_dim)
         self.value = nn.Linear(hidden_dim, 1)
         self.apply(self._init_weights)
+        self.hidden_dim = hidden_dim
 
     @staticmethod
     def _init_weights(m):
@@ -23,12 +24,47 @@ class ActorCritic(nn.Module):
             # Orthogonal init: policy는 작은 gain, value는 보통
             nn.init.orthogonal_(m.weight, gain=1.0)
             nn.init.zeros_(m.bias)
-    
+
     def forward(self, x):
         x = self.shared(x)
         policy_logits = self.policy(x)
         state_value = self.value(x)
         return policy_logits, state_value
+
+    def init_hidden(self, batch_size=1, device='cpu'):
+        """Dummy hidden state for compatibility with RNN interface"""
+        return torch.zeros(1, batch_size, self.hidden_dim, device=device)
+
+    def step(self, x, hx=None):
+        """Single step forward (compatible with RNN interface)
+        Args:
+            x: (B, state_dim) input
+            hx: dummy hidden state (ignored)
+        Returns:
+            logits: (B, action_dim)
+            value: (B, 1)
+            hx: dummy hidden state (unchanged)
+        """
+        logits, value = self.forward(x)
+        return logits, value, hx
+
+    def rollout(self, x_seq, hx=None, done_seq=None):
+        """Rollout over sequence (compatible with RNN interface)
+        Args:
+            x_seq: (B, T, state_dim)
+            hx: dummy hidden state (ignored)
+            done_seq: (B, T) done flags (ignored for feedforward)
+        Returns:
+            logits_seq: (B, T, action_dim)
+            values_seq: (B, T, 1)
+            hx: dummy hidden state (unchanged)
+        """
+        B, T, state_dim = x_seq.shape
+        x_flat = x_seq.reshape(B * T, state_dim)  # (B*T, state_dim)
+        logits_flat, values_flat = self.forward(x_flat)
+        logits_seq = logits_flat.reshape(B, T, -1)  # (B, T, action_dim)
+        values_seq = values_flat.reshape(B, T, 1)   # (B, T, 1)
+        return logits_seq, values_seq, hx
     
     
 class RecurrentActorCritic(nn.Module):
