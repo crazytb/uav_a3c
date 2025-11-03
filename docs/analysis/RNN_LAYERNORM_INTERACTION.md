@@ -422,14 +422,14 @@ We can partially estimate:
 | **RNN + LN** | 49.57 | **0.289** ⭐ | 38.22 | 0.425 | **29.7%** ⭐ | **25.4×** ⭐ |
 | RNN Only | 50.58 | 0.361 | 39.58 | 0.454 | 27.8% | ∞ (0.00 fail) |
 | LN Only | **52.94** ⭐ | 0.365 | **46.76** ⭐ | **0.217** ⭐ | 13.2% | 1.1× |
-| **Neither** | **?** | **?** | **?** | **?** | **~11%** | **?** |
+| **Neither** | 49.59 | **0.285** ⭐ | 38.23 | 0.426 | **29.7%** ⭐ | **22.4×** |
 
 **Best for:**
 - Absolute performance: LN Only (A3C 52.94)
-- Gap: RNN + LN (29.7%)
-- A3C stability: RNN + LN (CV 0.289)
+- Gap: **RNN + LN AND Neither** (both 29.7%) ⭐
+- A3C stability: **Neither** (CV 0.285, best) > RNN + LN (CV 0.289) ⭐
 - Individual stability: LN Only (CV 0.217)
-- Robustness: RNN + LN (25.4×)
+- Robustness: RNN + LN (25.4×) > Neither (22.4×)
 
 ---
 
