@@ -8,7 +8,7 @@ echo "=========================================="
 echo ""
 
 # Use torch-cert conda environment
-PYTHON_PATH=~/miniconda3/envs/torch-cert/bin/python
+PYTHON_PATH=~/miniconda/envs/torch-cert/bin/python
 
 # Check if python exists
 if [ ! -f "$PYTHON_PATH" ]; then

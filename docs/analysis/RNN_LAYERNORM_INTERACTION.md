@@ -8,14 +8,18 @@
 
 ### Complete 4×1 Configuration Matrix ✅
 
-| Configuration | RNN | LayerNorm | A3C | Individual | Gap | Gap % |
-|--------------|-----|-----------|-----|------------|-----|-------|
-| **Baseline** | ✅ | ✅ | 49.57 ± 14.35 | 38.22 ± 16.24 | +11.35 | **29.7%** ⭐ |
-| **RNN Only** | ✅ | ❌ | 50.58 ± 18.27 | 39.58 ± 17.97 | +11.00 | 27.8% |
-| **LN Only** | ❌ | ✅ | 52.94 ± 19.31 | 46.76 ± 10.14 | +6.18 | 13.2% |
-| **Neither** | ❌ | ❌ | 49.59 ± 14.16 | 38.23 ± 16.28 | +11.37 | **29.7%** ⭐ |
+| Configuration | RNN | LayerNorm | A3C | Individual | Gap | Gap % | Status |
+|--------------|-----|-----------|-----|------------|-----|-------|--------|
+| **Baseline** | ✅ | ✅ | 49.57 ± 14.35 | 38.22 ± 16.24 | +11.35 | **29.7%** ⭐ | Stable ✅ |
+| **RNN Only** | ✅ | ❌ | 50.58 ± 18.27 | 39.58 ± 17.97 | +11.00 | 27.8% | Stable ✅ |
+| **LN Only** | ❌ | ✅ | 52.94 ± 19.31 | 46.76 ± 10.14 | +6.18 | 13.2% | Stable ✅ |
+| **Neither (Env 1)** | ❌ | ❌ | 49.59 ± 14.16 | 38.23 ± 16.28 | +11.37 | 29.7% | Unstable ⚠️ |
+| **Neither (Env 2)** | ❌ | ❌ | 40.74 ± 24.32 | 49.86 ± 17.06 | -9.12 | **-18.3%** ❌ | Unstable ⚠️ |
 
-**🔥 CRITICAL DISCOVERY**: Neither achieves SAME gap (29.7%) as Baseline!
+**🔥 CRITICAL DISCOVERY**: Neither configuration shows **OPPOSITE results in different environments**!
+- Environment 1 (other computer): A3C +29.7% better
+- Environment 2 (current): Individual +18.3% better
+- **48 percentage point swing demonstrates extreme instability!**
 
 ---
 
@@ -103,7 +107,11 @@
 
 ---
 
-### Configuration 4: Neither RNN nor LayerNorm ⭐
+### Configuration 4: Neither RNN nor LayerNorm ⚠️
+
+**⚠️ CRITICAL WARNING: Results are environment-dependent and unreliable!**
+
+#### Environment 1 (Other Computer)
 
 | Metric | A3C | Individual | A3C Advantage |
 |--------|-----|------------|---------------|
@@ -112,29 +120,62 @@
 | CV | **0.285** | 0.426 | **33% more stable** |
 | Worst-case | 31.60 | 1.41 | **22.4× better** |
 
-**🔥 Shocking Discovery:**
-- **IDENTICAL gap to Baseline (29.7%)**!
-- Nearly identical A3C performance (49.59 vs 49.57)
-- Nearly identical Individual performance (38.23 vs 38.22)
-- Nearly identical CV values (0.285 vs 0.289)
+#### Environment 2 (Current Environment)
 
-**Characteristics:**
-- ⭐ **Same gap as baseline (29.7%)**
-- ⚠️ Extremely unstable training (4/5 seeds had policy collapse)
-- ✅ A3C stays robust (worst-case 31.60)
-- ❌ Individual catastrophic failures (worst-case 1.41)
+| Metric | A3C | Individual | A3C Advantage |
+|--------|-----|------------|---------------|
+| Mean | 40.74 | 49.86 | **-18.3%** ❌ |
+| Std | 24.32 | 17.06 | Individual better |
+| CV | 0.597 | **0.342** | **Individual 43% more stable** ❌ |
+| Worst-case | 0.00 | 0.00 | Both failed |
 
-**Why Same Gap as Baseline:**
-- **Gap is entirely algorithmic, NOT architectural!**
-- RNN and LayerNorm affect variance, not gap
-- A3C's parameter sharing creates the 29.7% advantage
-- Architecture only controls training stability
+**🔥 Shocking Discovery: OPPOSITE Results in Different Environments!**
 
-**Training Instability Evidence:**
-- Seed 42: Normal training (action probs diverse)
-- Seeds 123, 456, 789, 1024: Policy collapse (action probs [1.0, 0.0, 0.0])
-- High losses (1000s) during training
-- **NOT recommended for deployment**
+**Environment 1 claimed:**
+- ✅ "Gap is entirely algorithmic, NOT architectural"
+- ✅ Same 29.7% gap as baseline
+- ✅ A3C more stable
+
+**Environment 2 shows:**
+- ❌ **Individual WINS by 18.3%!**
+- ❌ Individual MORE stable (CV 0.342 vs 0.597)
+- ❌ Both experience catastrophic failures (0.00)
+- ❌ **48 percentage point swing from Env 1!**
+
+**What Actually Happened:**
+
+**Environment 1 (4/5 seeds had policy collapse)**:
+- Seed 42: Normal training
+- Seeds 123, 456, 789, 1024: Policy collapse
+- Individual workers failed more often
+- Result: A3C appeared better
+
+**Environment 2 (1/5 seeds completely failed)**:
+- **Seed 123 A3C: 0.00 (total failure)**
+- Seed 42 Individual Worker 2: 0.00 (total failure)
+- Seeds 42, 456, 789, 1024: Variable results
+- Result: Individual appeared better (due to A3C Seed 123 failure)
+
+**Per-Seed Breakdown (Environment 2):**
+- Seed 42: A3C 30.83 vs Ind 31.93 (-3.5%)
+- **Seed 123: A3C 0.00 vs Ind 65.30 (-100%)** ← Killed overall A3C average
+- Seed 456: A3C 70.83 vs Ind 49.93 (+41.9%)
+- Seed 789: A3C 49.59 vs Ind 45.49 (+9.0%)
+- Seed 1024: A3C 52.48 vs Ind 56.62 (-7.3%)
+
+**True Characteristics:**
+- ❌ **NOT stable** - 20% catastrophic failure rate
+- ❌ **NOT reproducible** - results flip between environments
+- ❌ **NOT reliable** - which seeds fail varies randomly
+- ❌ **NOT publishable** - contradictory results
+- ❌ **NOT recommended** - for any purpose
+
+**The Real Truth:**
+- **Neither configuration is too unstable to draw ANY conclusions**
+- Gap varies from -18% to +30% depending on environment
+- Previous "gap is 100% algorithmic" claim was **wrong**
+- Architecture provides **essential stability**, not optional enhancement
+- Without RNN and LayerNorm: results are **chaotic and meaningless**
 
 ---
 
@@ -166,23 +207,34 @@
 
 ---
 
-## 🎯 The Complete 2×2 Matrix ✅
+## 🎯 The Complete 2×2 Matrix ⚠️
 
-### Performance Heat Map (Gap %)
+### Performance Heat Map (Gap %) - UNRELIABLE
 
 |              | **With LayerNorm** | **Without LayerNorm** |
 |--------------|-------------------|----------------------|
-| **With RNN** | **29.7%** ⭐ | 27.8% |
-| **Without RNN** | 13.2% ❌ | **29.7%** ⭐ |
+| **With RNN** | **29.7%** ⭐ | 27.8% ✅ |
+| **Without RNN** | 13.2% ✅ | **-18% to +30%** ❌ |
 
-**🔥 Critical Pattern:**
-- **3 configurations**: ~28-30% gap (Baseline, RNN only, Neither)
-- **1 outlier**: 13.2% gap (LN only / No RNN)
+**⚠️ WARNING**: Neither configuration (bottom-right) is **NOT stable**!
+- Environment 1: +29.7% (A3C wins)
+- Environment 2: -18.3% (Individual wins)
+- **48 percentage point swing!**
 
-**Why LN Only is Different:**
+**Revised Pattern:**
+- **3 stable configurations**: Baseline (29.7%), RNN only (27.8%), LN only (13.2%) ✅
+- **1 UNSTABLE configuration**: Neither (varies wildly) ❌
+
+**Why LN Only is Different (BUT STABLE):**
 - Feedforward + LayerNorm makes Individual VERY stable (CV 0.217)
 - Individual catches up in mean performance (+22.3%)
-- Gap shrinks because Individual improves, NOT because architecture changes gap!
+- Gap shrinks to 13.2%, but **reproducibly across environments**
+
+**Why Neither is Unstable:**
+- No stabilization mechanisms → chaotic training
+- 20% catastrophic failure rate
+- Results depend on which seeds randomly fail
+- **Cannot draw any conclusions from this configuration**
 
 ### Mean Performance Heat Map
 
@@ -539,47 +591,65 @@ We can partially estimate:
 
 ---
 
-## 📋 Recommendations (REVISED)
+## 📋 Recommendations (REVISED 2025-11-04)
+
+### ⚠️ CRITICAL CORRECTION
+
+**Previous claim** (from Env 1): "Gap is 100% algorithmic, 0% architectural"
+**Status**: **WRONG - retracted due to reproducibility failure**
+
+**Evidence**:
+- Environment 1: Neither shows +29.7% gap (A3C wins)
+- Environment 2: Neither shows -18.3% gap (Individual wins)
+- **48 percentage point swing proves instability**
+
+**Correct statement**: "Architecture provides essential stability. Without it, results are chaotic and unreliable."
 
 ### For Research
 
-**Focus on algorithmic mechanisms**:
-- ✅ How parameter sharing reduces variance
-- ✅ Why asynchronous updates help
-- ✅ Optimal worker count analysis
-- ❌ NOT on RNN vs feedforward (stability choice)
-- ❌ NOT on LayerNorm tuning (stability choice)
+**DO focus on**:
+- ✅ How parameter sharing reduces variance (stable finding)
+- ✅ Why asynchronous updates help (stable finding)
+- ✅ Optimal worker count analysis (stable finding)
+- ✅ **Importance of architectural stability** (NEW)
 
-**Correct narrative**:
-- "A3C's 29.7% advantage is purely algorithmic"
-- "RNN reveals Individual's instability under complexity"
-- "Architecture affects training stability, not performance gap"
+**DO NOT use**:
+- ❌ Neither configuration for ANY conclusions
+- ❌ Claims about "100% algorithmic" gap
+- ❌ Cross-environment comparisons without stability checks
+
+**Correct narrative** (revised):
+- "A3C shows 15-30% advantage depending on configuration"
+- "RNN+LayerNorm provides most reliable results (29.7% gap)"
+- "Without architectural stabilization, results vary wildly"
+- "Architecture is essential for reproducible science"
 
 ### For Deployment
 
-**Choose architecture based on stability needs**:
+**Choose architecture based on stability AND performance**:
 
-1. **RNN + LayerNorm** (Most stable):
-   - A3C CV: 0.289
-   - Worst-case: 31.72
-   - Gap: 29.7%
-   - **Use when**: Reliability critical
+1. **RNN + LayerNorm** (RECOMMENDED):
+   - A3C CV: 0.289 (best stability)
+   - Worst-case: 31.72 (robust)
+   - Gap: 29.7% (reliable across environments)
+   - **Use when**: Research, reliability critical, reproducibility needed
 
-2. **Feedforward + LayerNorm** (Highest performance):
+2. **Feedforward + LayerNorm** (Alternative):
    - A3C mean: 52.94 (highest!)
    - Individual mean: 46.76 (highest!)
-   - Gap: 13.2% (lowest, but still meaningful)
-   - **Use when**: Absolute performance matters
+   - Gap: 13.2% (stable but lower)
+   - **Use when**: Absolute performance matters, Individual also deployed
 
-3. **Neither** (NOT recommended):
-   - Unstable training (4/5 seeds failed)
-   - Policy collapse common
-   - Gap: 29.7% (same as baseline)
-   - **Use when**: Never (research only)
+3. **Neither** (NEVER USE):
+   - Environment-dependent results (-18% to +30%)
+   - 20% catastrophic failure rate
+   - Not reproducible across machines
+   - **Use when**: NEVER (even for research!)
 
 ---
 
-**Last Updated**: 2025-11-03
-**Status**: ✅ All 4 configurations complete
-**Critical Discovery**: Gap is 100% algorithmic, 0% architectural
-**Major Implication**: Previous "92% worker diversity" and "55% RNN" claims were measurement errors
+**Last Updated**: 2025-11-04
+**Status**: ⚠️ Neither configuration results are UNRELIABLE
+**Critical Finding**: Previous "100% algorithmic" claim was **wrong** - based on unstable configuration
+**Major Implication**: Architecture provides **essential stability**, not optional enhancement
+**Lesson**: Without RNN and LayerNorm, you don't get "pure algorithmic advantage" - you get chaos

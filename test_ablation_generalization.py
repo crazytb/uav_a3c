@@ -52,15 +52,23 @@ def load_model(model_path, ablation_name, device):
     input_dim = 48  # state is flattened dict with 48 features
     output_dim = 3  # 3 actions: local, cloud, drop
 
-    # IMPORTANT: trainer.py always creates RecurrentActorCritic
-    # The actual architecture is determined by use_layer_norm parameter
-    # So we always use RecurrentActorCritic, but with correct use_layer_norm
-    model = RecurrentActorCritic(
-        state_dim=input_dim,
-        action_dim=output_dim,
-        hidden_dim=hidden_dim,
-        use_layer_norm=has_layer_norm  # Use detected value from checkpoint
-    ).to(device)
+    # IMPORTANT: trainer.py creates either ActorCritic or RecurrentActorCritic
+    # depending on use_recurrent parameter
+    # Detect architecture from checkpoint and use matching model class
+    if has_rnn:
+        model = RecurrentActorCritic(
+            state_dim=input_dim,
+            action_dim=output_dim,
+            hidden_dim=hidden_dim,
+            use_layer_norm=has_layer_norm  # Use detected value from checkpoint
+        ).to(device)
+    else:
+        # Feedforward ActorCritic (no RNN)
+        model = ActorCritic(
+            state_dim=input_dim,
+            action_dim=output_dim,
+            hidden_dim=hidden_dim
+        ).to(device)
 
     # Load state dict
     model.load_state_dict(state_dict)
