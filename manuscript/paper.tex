@@ -47,7 +47,7 @@
 \maketitle
 
 \begin{abstract}
-Multi-UAV task offloading optimization in edge computing environments represents a critical challenge for enabling efficient distributed computation, as UAV swarms must make coordinated decisions under dynamic network conditions, limited computational resources, and stringent latency constraints. This paper presents ATLAS (Adaptive Task Learning Allocation System), a universal framework that employs shared global model training through Asynchronous Advantage Actor-Critic algorithms to optimize task offloading decisions across distributed UAV networks. The methodology formulates the problem as a multi-agent Markov Decision Process where several UAV workers operating in heterogeneous environments contribute learning experiences to a centralized global model, enabling coordinated decision-making for local processing, MEC server offloading, or task discard actions. Experimental evaluation demonstrates that the shared global model achieves superior reward distribution and convergence characteristics compared to individual worker training, with statistical analysis revealing significant performance improvements across diverse operational scenarios. Cross-environment generalization experiments show enhanced knowledge transfer capabilities, where the global model maintains robust performance when deployed in previously unseen environmental configurations. These findings provide essential insights for designing scalable multi-UAV systems and demonstrate the effectiveness of centralized learning approaches for distributed edge computing applications.
+Multi-UAV task offloading in edge computing environments requires coordinated decision-making under dynamic network conditions and limited computational resources. This paper presents an A3C-based multi-UAV task offloading system that leverages parameter sharing among distributed workers to achieve superior generalization performance across diverse operational conditions. We formulate the problem as a partially observable Markov decision process where UAV agents select optimal offloading actions, specifically, local processing, MEC offloading, or task discard, based on computational state, queue status, and network conditions. The proposed system employs a recurrent actor-critic architecture with layer normalization to handle sequential dependencies and stabilize asynchronous training across multiple workers. Experimental evaluation demonstrates that the A3C-based approach with parameter sharing significantly outperforms independent learning strategies, achieving enhanced mean performance, improved stability, and superior worst-case robustness. Through systematic ablation studies, we validate our architectural design choices and identify critical system parameters that ensure A3C's advantages. The results provide practical guidelines for deploying distributed reinforcement learning in multi-UAV edge computing systems, demonstrating when coordinated learning approaches provide genuine benefits over independent policies.
 \end{abstract}
 
 
@@ -62,70 +62,107 @@ UAV, Task Offloading, A3C, Deep Reinforcement Learning, Multi-Agent Systems, Edg
 \section{Introduction}
 \label{sec:introduction}
 
-The proliferation of Unmanned Aerial Vehicles (UAVs) in various applications has created new opportunities for distributed computing and task offloading in edge computing environments. As UAV swarms become increasingly sophisticated, the challenge of optimizing computational task distribution among multiple agents becomes critical for system performance and energy efficiency.
+% General problem area
+The proliferation of Unmanned Aerial Vehicles (UAVs) in applications ranging from surveillance to emergency response has created unprecedented opportunities for distributed edge computing. Multi-UAV systems must make real-time decisions about computational task offloading while operating under stringent energy constraints, dynamic network conditions, and limited onboard resources. As UAV deployments scale to swarms of tens or hundreds of agents, the challenge of coordinating task distribution across heterogeneous edge computing infrastructure becomes increasingly critical for system performance and mission success.
 
-Modern UAV systems are required to process computationally intensive tasks such as real-time image processing, path planning, and sensor data analysis while operating under strict energy and latency constraints. The limited computational resources onboard individual UAVs necessitate intelligent task offloading strategies that can dynamically distribute workloads across the network, including mobile edge computing (MEC) servers and cloud infrastructure.
+% Specific problem being addressed
+While existing approaches have explored various task offloading strategies~\cite{seid2021multi,wang2023stackelberg,guo2024multi,hao2024joint,li2024robust}, a fundamental gap remains in understanding how to effectively coordinate learning among distributed UAV agents. Traditional centralized optimization methods struggle with the dynamic, partially observable nature of multi-UAV environments, while independent learning approaches fail to leverage collective experience across the swarm. The key challenge lies in designing a distributed reinforcement learning system that can share knowledge effectively among heterogeneous workers operating in diverse conditions, maintain stable performance across varying network topologies and resource availability, and generalize to previously unseen operational scenarios without requiring complete retraining.
 
-Reinforcement Learning (RL), particularly deep reinforcement learning approaches, has emerged as a promising solution for addressing the complex decision-making challenges in multi-UAV systems. Among various RL algorithms, Asynchronous Advantage Actor-Critic (A3C) has shown significant potential due to its ability to handle continuous action spaces and its inherent parallelization capabilities. The asynchronous nature of A3C allows multiple agents to learn simultaneously, making it particularly suitable for distributed UAV scenarios where coordination and communication constraints exist.
+% Example
+Consider a disaster response scenario where multiple UAVs must coordinate to process sensor data, execute path planning, and transmit critical information to ground stations. Each UAV is equipped with a local mobile edge computing (MEC) server and faces a continuous stream of computational tasks. For each incoming task, the UAV must decide whether to (1) process it locally using its onboard computing resources (consuming battery energy but avoiding communication delays), (2) offload it to cloud servers on the core network through wireless backhaul links (leveraging superior computational capacity but incurring transmission costs, network latency, and potential communication failures), or (3) discard the task when neither local nor cloud processing is feasible (sacrificing task completion to conserve critical resources). The optimal decision depends on the current system state observed by each UAV, which includes local computational state, queue state, cloud server state, local computation capacity, and the wireless channel conditions. Moreover, environmental heterogeneity means that UAVs operating in different regions encounter vastly different network conditions and resource availability, making coordinated learning through parameter sharing essential for achieving robust system-wide performance.
 
-However, a fundamental question remains regarding the optimal training strategy for A3C in multi-UAV environments: should the system employ a centralized approach with a shared global model, or would decentralized training with individual worker specialization yield superior performance? This question becomes even more critical when considering the heterogeneous nature of operational environments that UAV systems encounter.
+% Thesis statement
+In this paper, we present an A3C-based multi-UAV task offloading system that leverages parameter sharing among distributed workers to achieve superior generalization performance across diverse operational conditions. Our system employs a recurrent actor-critic architecture with layer normalization to handle sequential decision dependencies and stabilize asynchronous training across multiple heterogeneous workers.
 
-This paper investigates two fundamental training strategies for A3C-based multi-UAV task offloading: (1) centralized training using a global model shared across all workers, and (2) decentralized training where individual workers develop specialized policies. Through comprehensive experimental evaluation across multiple environmental configurations, we analyze the performance characteristics, convergence properties, and generalization capabilities of each approach.
+% Approach
+We formulate the multi-UAV task offloading problem as a partially observable Markov decision process (POMDP) where each UAV agent selects actions based on the observations. The proposed architecture integrates recurrent neural networks to capture temporal dependencies in wireless channel conditions and resource availability on the cloud size, which might be hidden on the UAV side, while layer normalization ensures stable gradient updates across asynchronously training workers. Through systematic experimentation across varying resource constraints, network velocities, and exploration parameters, we validate our design choices and identify the operational regimes where distributed learning provides genuine advantages over independent policies.
 
-To sum up, the contributions of this paper are fourfold: 
+% Contributions
+The main contributions of this paper are as follows:
 \begin{itemize}
-    \item We present a comprehensive performance comparison between A3C global and individual training strategies for multi-UAV task offloading optimization, providing the first systematic evaluation of these training paradigms in UAV-assisted edge computing environments.
-    \item We conduct rigorous statistical analysis of reward distributions and convergence characteristics across multiple heterogeneous environments, demonstrating significant performance differences between training approaches.
-    \item We develop an evaluation framework for cross-environment generalization in multi-UAV systems, enabling assessment of training strategy effectiveness across diverse operational scenarios.
-    \item We provide practical insights into optimal training paradigms for different operational scenarios, offering guidelines for UAV system deployment in varying environmental conditions.
+    \item We design and implement an A3C-based multi-UAV task offloading system with a carefully architected recurrent actor-critic network that achieves superior generalization performance through parameter sharing among distributed workers.
+    \item We conduct comprehensive ablation studies across architectural components, hyperparameters, and environmental factors to validate our design choices and establish practical deployment guidelines.
+    % \item We demonstrate that A3C's performance advantage stems from its algorithmic design (parameter sharing and asynchronous updates) rather than architectural sophistication, providing fundamental insights into when and why distributed learning outperforms independent approaches.
+    \item We identify critical operational regimes---including resource availability, exploration requirements, and environmental dynamics---that determine whether A3C provides genuine benefits, offering practitioners clear criteria for algorithm selection in multi-UAV deployments.
 \end{itemize}
 
-The remainder of this paper is organized as follows. Section~\ref{sec:related_work} offers a comprehensive review of relevant studies in UAV task offloading and multi-agent reinforcement learning. We describe the system model and problem formulation in Section~\ref{sec:POMDP}. The experimental setup and implementation details are presented in Section~\ref{sec:experimental_setup}. Performance evaluation results are given in Section~\ref{sec:results}, followed by discussion in Section~\ref{sec:discussion} and conclusion in Section~\ref{sec:conclusion}.
+% Paper structure
+The remainder of this paper is organized as follows. Section~\ref{sec:related_work} reviews related work in UAV task offloading and multi-agent reinforcement learning. Section~\ref{sec:POMDP} formulates the problem as a POMDP and describes our system architecture. Section~\ref{sec:experimental_setup} details the experimental setup and evaluation methodology. Section~\ref{sec:results} presents performance evaluation results and ablation study findings. Section~\ref{sec:discussion} discusses implications and limitations, and Section~\ref{sec:conclusion} concludes the paper.
 
 \section{Related Works}
 \label{sec:related_work}
 
-The intersection of UAV-assisted mobile edge computing and deep reinforcement learning has emerged as a critical research area, with various approaches addressing the challenges of distributed task offloading optimization. This section reviews existing work across three key themes: deep reinforcement learning approaches for UAV task offloading, multi-agent coordination strategies, and federated learning frameworks.
+The intersection of UAV-assisted mobile edge computing and deep reinforcement learning has emerged as a critical research area, with various approaches addressing the challenges of distributed task offloading optimization. This section reviews existing work across three key themes: reinforcement learning methods for task offloading, multi-agent coordination and parameter sharing strategies, and architectural components for handling partial observability in sequential decision-making systems.
 
-\subsection{Deep Reinforcement Learning for UAV Task Offloading}
+\subsection{Reinforcement Learning for UAV Task Offloading}
 
-Recent advances in deep reinforcement learning have shown significant promise for addressing the complex decision-making challenges in UAV-assisted mobile edge computing environments. Traditional optimization approaches often struggle with the dynamic and uncertain nature of wireless channels, computational demands, and energy constraints.
+Deep reinforcement learning has been extensively applied to UAV task offloading problems due to its ability to handle complex, dynamic environments without requiring explicit models of system dynamics.
 
-Song \cite{song2024drqn} addresses the challenge of hidden channel conditions in UAV-assisted MEC systems by proposing PORTO-MEC, a Deep Recurrent Q-Network (DRQN) based algorithm. The work formulates the problem as a Partially Observable Markov Decision Process (POMDP), where UAVs must make task offloading decisions without complete information about channel states between UAVs and cloud servers. The DRQN approach leverages temporal dependencies in the environment to make informed decisions under uncertainty, achieving 58.82\% higher rewards compared to traditional DQN approaches, 92.39\% improvement over local-only processing, and 213.51\% improvement over offload-only strategies. However, this work focuses on single-agent scenarios and does not address multi-UAV coordination challenges.
+\cite{seid2021multi},
+\cite{zhao2022multiagent},
+\cite{song2024drqn},
+\cite{hao2024joint}, 
+\cite{li2024robust},
+\cite{guo2025cognitive},
 
-Wang et al. \cite{wang2020deep} and Liu et al. \cite{liu2020multi} have explored various deep reinforcement learning approaches for UAV-enabled wireless communications and collaborative task offloading. These works demonstrate the effectiveness of DRL methods in handling dynamic environments but primarily focus on individual UAV optimization or simplified multi-UAV scenarios without systematic comparison of training strategies.
 
-\subsection{Multi-Agent Deep Reinforcement Learning Approaches}
+% Value-based methods (DQN, DRQN)
+% TODO: Add references on DQN-based task offloading
+% TODO: Add references on DRQN for partial observability
 
-The complexity of multi-UAV systems necessitates sophisticated coordination mechanisms that can handle the distributed nature of the problem while ensuring efficient resource utilization and performance optimization.
+% Actor-critic methods
+% TODO: Add references on actor-critic approaches
+% TODO: Add references on policy gradient methods
 
-Zhao et al. \cite{zhao2022multiagent} propose a comprehensive multi-agent deep reinforcement learning framework for task offloading in UAV-assisted mobile edge computing systems. Their approach, named MATD3 (Multi-Agent Twin Delayed Deep Deterministic Policy Gradient), addresses the joint optimization of UAV trajectories, computation task allocation, and communication resource management. The framework formulates the problem as a multi-agent Markov Decision Process and employs a cooperative MADRL approach to handle high-dimensional continuous action spaces. The system demonstrates superior performance compared to traditional optimization approaches, particularly in terms of adaptability to UEs' mobility, robustness to resource changes, and flexibility to dynamic computation demands.
+% Research gap for this subsection
+While these approaches demonstrate the effectiveness of deep RL for task offloading, they primarily focus on single-agent scenarios or do not systematically compare centralized parameter sharing versus independent learning strategies. Moreover, limited attention has been given to A3C algorithms specifically designed for multi-UAV coordination with parameter sharing. \textbf{Gap 1:} Existing work does not systematically compare A3C's global parameter sharing against independent learning strategies, nor does it identify the operational regimes where distributed learning provides genuine advantages.
 
-The MATD3 framework adopts a centralized training with decentralized execution strategy, where evaluation critic networks obtain global views during training while individual UAVs execute policies based on local observations during deployment. This approach achieves significant improvements in total system cost reduction while maintaining scalability across different numbers of UAVs and user equipment. However, the work does not systematically compare different training paradigms or investigate the trade-offs between centralized and fully decentralized learning approaches.
+\subsection{Distributed Learning and Parameter Sharing}
 
-Foerster et al. \cite{foerster2018counterfactual} and Gupta et al. \cite{gupta2017cooperative} have established foundational work in cooperative multi-agent reinforcement learning, providing theoretical frameworks that have influenced subsequent UAV coordination research. However, these approaches have not been specifically evaluated for UAV task offloading scenarios or compared across different training strategies.
+Multi-agent reinforcement learning for edge computing systems requires careful consideration of how knowledge is shared among distributed agents.
 
-\subsection{Federated Learning and Decentralized Training}
+\cite{zhuo2019federated},
+\cite{wang2020federated},
+\cite{tehrani2021federated},
+\cite{yu2021when},
+\cite{moon2022federated},
+\cite{zhao2024federated},
 
-The challenge of data privacy, communication overhead, and training efficiency in distributed systems has led to the exploration of federated learning approaches in edge computing environments.
+% A3C and asynchronous methods
+% TODO: Add original A3C paper and variants
+% TODO: Add A3C applications in different domains
 
-Wang et al. \cite{wang2020federated} introduce FADE (Federated Deep reinforcement learning-based cooperative edge caching), a framework that enables base stations to cooperatively learn shared predictive models while keeping training data localized on individual IoT devices. The approach uses Double Deep Q-Network (DDQN) as the underlying reinforcement learning algorithm and demonstrates 92\% loss reduction in the first 100 training steps compared to centralized approaches, along with 60\% improvement in system payment efficiency. The framework addresses privacy concerns and communication overhead by sharing only model parameters rather than raw data.
+% Centralized vs Decentralized training
+% TODO: Add references on CTDE (Centralized Training Decentralized Execution)
+% TODO: Add references on federated learning approaches
 
-While FADE focuses on edge caching rather than computation task offloading, it provides valuable insights into the benefits and challenges of federated learning in distributed edge computing scenarios. The work demonstrates that decentralized training can achieve comparable or superior performance to centralized approaches while addressing practical deployment constraints.
+% Parameter sharing strategies
+% TODO: Add references on parameter sharing benefits
+% TODO: Add references on multi-agent coordination
 
-\subsection{Research Gaps and Motivation}
+% Research gap for this subsection
+While various distributed learning paradigms have been explored, existing work lacks systematic comparison between A3C with global parameter sharing and fully independent worker training in the context of UAV task offloading. \textbf{Gap 2:} Current research provides limited guidance on when distributed parameter sharing provides genuine advantages over independent learning. The operational regimes---including resource availability, exploration requirements, and environmental dynamics---that determine algorithm effectiveness remain unclear, particularly across heterogeneous operational environments.
 
-Despite the significant progress in UAV-assisted mobile edge computing and deep reinforcement learning, several critical research gaps remain:
+\subsection{Architecture Components in Deep Reinforcement Learning}
 
-\textbf{Training Strategy Comparison:} Existing work has not systematically compared global versus individual training strategies for A3C in multi-UAV environments. While Zhao et al. \cite{zhao2022multiagent} demonstrate the effectiveness of centralized training with decentralized execution, and Wang et al. \cite{wang2020federated} show benefits of federated learning for edge caching, there lacks a comprehensive analysis of pure centralized versus fully decentralized training paradigms specifically for task offloading optimization.
+The design of neural network architectures significantly impacts the performance and stability of deep RL systems, particularly in partially observable environments.
 
-\textbf{A3C Algorithm Exploration:} Limited research has explored the potential of Asynchronous Advantage Actor-Critic (A3C) algorithms for multi-UAV task offloading, despite A3C's inherent advantages in parallel learning and policy gradient methods. Most existing work focuses on DQN variants \cite{song2024drqn} or actor-critic methods like TD3 \cite{zhao2022multiagent}, leaving A3C's performance characteristics unexplored in this domain.
+% Recurrent architectures for RL
+% TODO: Add references on RNN/LSTM/GRU in RL
+% TODO: Add references on handling partial observability
 
-\textbf{Cross-Environment Generalization:} Current approaches primarily evaluate performance within specific environmental configurations without systematic analysis of generalization capabilities across diverse operational scenarios. This limits the practical applicability of trained models in real-world deployments where UAVs encounter varying environmental conditions.
+% Normalization techniques
+% TODO: Add references on layer normalization in deep RL
+% TODO: Add references on batch normalization variants
 
-\textbf{Statistical Rigor:} Many existing studies lack comprehensive statistical analysis of performance differences between training approaches, making it difficult to draw definitive conclusions about optimal strategies for different scenarios.
+% Ablation studies in RL
+% TODO: Add references on systematic architecture ablation studies
+% TODO: Add references on component analysis in deep RL
 
-This work addresses these gaps by providing a systematic comparison of A3C global versus individual training strategies, comprehensive statistical analysis across multiple environmental configurations, and evaluation of cross-environment generalization capabilities in multi-UAV task offloading scenarios.
+% Research gap for this subsection
+While individual architectural components have been studied in isolation, comprehensive ablation studies that systematically validate design choices across multiple dimensions remain limited. \textbf{Gap 3:} Existing studies lack comprehensive ablation analysis that validates architectural design choices (RNN, layer normalization) in the context of multi-agent asynchronous training across architectural components, hyperparameters, and environmental factors. The interaction effects between recurrent components and normalization techniques in multi-agent asynchronous training have not been thoroughly investigated, particularly regarding their impact on training stability and generalization performance.
+
+Addressing these three research gaps, this paper presents a carefully designed A3C-based multi-UAV task offloading system with comprehensive ablation studies that provide both system design contributions and fundamental insights into when and why distributed learning outperforms independent approaches.
 
 % POMDP Formulation
 \section{POMDP Formulation}
@@ -190,12 +227,12 @@ All state components are normalized to $[0, 1]$ to ensure stable neural network 
 The action space $\mathcal{A}$ in the ATLAS framework defines the discrete set of decisions available to each UAV agent when processing incoming computational tasks. We formulate the action space as a finite discrete set:
 
 \begin{equation}
-\mathcal{A} = \{a_{LOCAL}, a_{OFFLOAD}, a_{DISCARD}\} = \{0, 1, 2\}
+\mathcal{A} = \{a_{LOC}, a_{OFF}, a_{DIS}\} = \{0, 1, 2\}
 \end{equation}
 
 Each action corresponds to a distinct task processing strategy with specific operational characteristics:
 
-\textbf{Local Processing ($a_{LOCAL} = 0$):} When this action is selected, the UAV processes the computational task using its onboard computing resources. This action is optimal when:
+\textbf{Local Processing ($a_{LOC} = 0$):} When this action is selected, the UAV processes the computational task using its onboard computing resources. This action is optimal when:
 \begin{itemize}
 \item Local computational capacity is sufficient for the task requirements
 \item Network connectivity to MEC servers is poor or unavailable  
@@ -205,7 +242,7 @@ Each action corresponds to a distinct task processing strategy with specific ope
 
 The local processing action triggers immediate computation on the UAV, consuming local energy resources but avoiding transmission delays and potential network failures.
 
-\textbf{Offloading ($a_{OFFLOAD} = 1$):} This action involves transmitting the computational task to available MEC servers for remote processing. Offloading is advantageous when:
+\textbf{Offloading ($a_{OFF} = 1$):} This action involves transmitting the computational task to available MEC servers for remote processing. Offloading is advantageous when:
 \begin{itemize}
 \item Local computational resources are insufficient or overloaded
 \item MEC servers have available capacity and favorable processing times
@@ -215,7 +252,7 @@ The local processing action triggers immediate computation on the UAV, consuming
 
 The offloading action incurs transmission energy costs and introduces network-dependent delays, but potentially reduces local computational load and enables processing of resource-intensive tasks.
 
-\textbf{Task Discard ($a_{DISCARD} = 2$):} When system conditions are unfavorable for both local processing and offloading, the agent may choose to discard the task. This action is selected when:
+\textbf{Task Discard ($a_{DIS} = 2$):} When system conditions are unfavorable for both local processing and offloading, the agent may choose to discard the task. This action is selected when:
 \begin{itemize}
 \item Local resources are critically low 
 \item MEC servers are overloaded or unreachable
@@ -241,9 +278,9 @@ The state transition dynamics are influenced by several key factors:
 \textbf{Computational Resource Evolution:} The computational state transitions depend on task processing outcomes and resource consumption:
 \begin{equation}
 c'_{avail} = \begin{cases}
-\max(0, c_{avail} - \Delta c_{local}) & \text{if } a_t = a_{LOCAL} \\
-c_{avail} & \text{if } a_t = a_{OFFLOAD} \\
-c_{avail} & \text{if } a_t = a_{DISCARD}
+\max(0, c_{avail} - \Delta c_{local}) & \text{if } a_t = a_{LOC} \\
+c_{avail} & \text{if } a_t = a_{OFF} \\
+c_{avail} & \text{if } a_t = a_{DIS}
 \end{cases}
 \end{equation}
 
@@ -287,9 +324,9 @@ where $\alpha$, $\beta$, $\gamma$, and $\delta$ are positive weighting coefficie
 \textbf{Energy Cost ($C_{energy}$):} This component penalizes energy consumption for different actions:
 \begin{equation}
 C_{energy}(s_t, a_t) = \begin{cases}
-E_{local} \cdot q_{units} & \text{if } a_t = a_{LOCAL} \\
-E_{transmission} \cdot q_{units} & \text{if } a_t = a_{OFFLOAD} \\
-0 & \text{if } a_t = a_{DISCARD}
+E_{local} \cdot q_{units} & \text{if } a_t = a_{LOC} \\
+E_{transmission} \cdot q_{units} & \text{if } a_t = a_{OFF} \\
+0 & \text{if } a_t = a_{DIS}
 \end{cases}
 \end{equation}
 
@@ -298,9 +335,9 @@ where $E_{local}$ and $E_{transmission}$ represent normalized energy costs for l
 \textbf{Latency Cost ($C_{latency}$):} This component accounts for processing and communication delays:
 \begin{equation}
 C_{latency}(s_t, a_t) = \begin{cases}
-T_{local}(q_{units}, c_{avail}) & \text{if } a_t = a_{LOCAL} \\
-T_{offload}(q_{units}, e_{mec\_times}) + T_{transmission} & \text{if } a_t = a_{OFFLOAD} \\
-0 & \text{if } a_t = a_{DISCARD}
+T_{local}(q_{units}, c_{avail}) & \text{if } a_t = a_{LOC} \\
+T_{offload}(q_{units}, e_{mec\_times}) + T_{transmission} & \text{if } a_t = a_{OFF} \\
+0 & \text{if } a_t = a_{DIS}
 \end{cases}
 \end{equation}
 
@@ -309,9 +346,9 @@ where $T_{local}$ and $T_{offload}$ are functions computing processing times bas
 \textbf{Failure Penalty ($C_{failure}$):} This component penalizes unsuccessful task processing:
 \begin{equation}
 C_{failure}(s_t, a_t) = \begin{cases}
-P_{fail\_local} \cdot \rho_{failure} & \text{if } a_t = a_{LOCAL} \\
-P_{fail\_offload} \cdot \rho_{failure} & \text{if } a_t = a_{OFFLOAD} \\
-\rho_{discard} & \text{if } a_t = a_{DISCARD}
+P_{fail\_local} \cdot \rho_{failure} & \text{if } a_t = a_{LOC} \\
+P_{fail\_offload} \cdot \rho_{failure} & \text{if } a_t = a_{OFF} \\
+\rho_{discard} & \text{if } a_t = a_{DIS}
 \end{cases}
 \end{equation}
 
@@ -320,9 +357,9 @@ where $P_{fail\_local}$ and $P_{fail\_offload}$ are failure probabilities, and $
 \textbf{Completion Benefit ($B_{completion}$):} This component provides positive rewards for successful task completion:
 \begin{equation}
 B_{completion}(s_t, a_t) = \begin{cases}
-(1 - P_{fail\_local}) \cdot \eta_{success} & \text{if } a_t = a_{LOCAL} \\
-(1 - P_{fail\_offload}) \cdot \eta_{success} & \text{if } a_t = a_{OFFLOAD} \\
-0 & \text{if } a_t = a_{DISCARD}
+(1 - P_{fail\_local}) \cdot \eta_{success} & \text{if } a_t = a_{LOC} \\
+(1 - P_{fail\_offload}) \cdot \eta_{success} & \text{if } a_t = a_{OFF} \\
+0 & \text{if } a_t = a_{DIS}
 \end{cases}
 \end{equation}
 
