@@ -78,6 +78,8 @@ The repository contains CSV files with action logs and evaluation results:
 - Action masking is implemented in the environment for valid action selection
 - Models support both feedforward and recurrent architectures
 - Evaluation includes both greedy and stochastic policy evaluation
+- **Velocity unit**: km/h (kilometers per hour), range: 30-100 km/h for normalization
+- **State space**: S_local (terminal state) × S_context (environment), with hidden S_channel and S_cloud
 
 ## Current Research Status (Last Updated: 2025-11-04)
 

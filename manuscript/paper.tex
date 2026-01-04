@@ -31,7 +31,7 @@
 % Begin document
 \begin{document}
 
-\title{ATLAS: Adaptive Task Offloading System in Multi-UAV Multi-Access Edge Computing}
+\title{ATLAS: Adaptive Task Offloading System in Multi-UAV-assisted Multi-Access Edge Computing}
 
 \author{Taewon Song and Taeyoon Kim
 \thanks{T. Song is with the Department of Internet of Things, College of SW Convergence, Soonchunhyang University, 22 Soonchunhyang-ro, Shinchang-myeon, Asan-si, Chungcheongnam-do, 31538, Korea (e-mail: twsong@sch.ac.kr) and T. Kim is with ... (e-mail: 2000kty@dankook.ac.kr), Corresponding author: T. Kim.}% <-this % stops a space
@@ -172,55 +172,63 @@ Addressing these three research gaps, this paper presents a carefully designed A
 
 We formulate the multi-UAV task offloading optimization problem as a Partially Observable Markov Decision Process (POMDP), where each UAV agent operates as an intelligent decision maker in a dynamic edge computing environment. The POMDP framework enables UAV agents to make sequential decisions for incoming computational tasks while adapting to changing environmental conditions and resource availability. Furthermore, the POMDP formulation captures the inherent uncertainty in UAV operations, such as fluctuating network conditions and the computation capability of the cloud servers for task offloading.
 
-Formally, the ATLAS framework models the task offloading problem as a tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ is the action space, $\mathcal{P}$ is the state transition function, $\mathcal{R}$ is the reward function, and $\gamma \in [0,1]$ is the discount factor. Each UAV agent observes the current system state $s_t \in \mathcal{S}$, selects an action $a_t \in \mathcal{A}$ according to its policy $\pi(a_t|s_t)$, and receives a reward $r_t = \mathcal{R}(s_t, a_t)$ while transitioning to the next state $s_{t+1} \sim \mathcal{P}(s_{t+1}|s_t, a_t)$.
+Formally, the ATLAS framework models the task offloading problem as a tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ is the action space, $\mathcal{P}$ is the state transition function, $\mathcal{R}$ is the reward function, and $\gamma \in [0,1]$ is the discount factor. At time $t$, each UAV agent can be in a state $s_t \in \mathcal{S}$, then selects an action $a_t \in \mathcal{A}$ according to its policy $\pi(a_t|s_t)$, and receives a reward $r_t = \mathcal{R}(s_t, a_t)$ while transitioning to the next state $s_{t+1} \sim \mathcal{P}(s_{t+1}|s_t, a_t)$.
 
 The primary objective is to learn an optimal policy $\pi^*$ that maximizes the expected cumulative discounted reward:
 \begin{equation}
-\pi^* = \arg\max_\pi \mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^t r_t \mid \pi\right]
+\pi^* = \arg\max_\pi \mathbb{E}\left[\sum_{t=0}^{\infty} \gamma^t r_t \mid \pi\right].
 \end{equation}
-
 This formulation enables UAV agents to balance multiple competing objectives including energy efficiency, processing latency minimization, and task completion success rates in dynamic edge computing scenarios.
 
 \subsection{State Space}
 
-The state space $\mathcal{S}$ in the ATLAS framework captures comprehensive information about the UAV's computational environment, task queue status, and contextual factors that influence offloading decisions. We define the state space as a Cartesian product of four fundamental components:
+% The state space $\mathcal{S}$ in the ATLAS framework captures comprehensive information about the UAV's computational environment, task queue status, and contextual factors that influence offloading decisions. We define the state space as a Cartesian product of four fundamental components:
+The state space $\mathcal{S}$ in the ATLAS framework captures comprehensive information about the UAV's computational environment through four fundamental components: local device status, communication channel conditions, server infrastructure state, and environmental context. We formally define the state space as:
+
+% \begin{equation}
+% \mathcal{S} = \mathcal{C} \times \mathcal{Q} \times \mathcal{E} \times \mathcal{V}
+% \end{equation}
 
 \begin{equation}
-\mathcal{S} = \mathcal{C} \times \mathcal{Q} \times \mathcal{E} \times \mathcal{V}
+\mathcal{S} = {S}_{loc} \times {S}_{con} \times {S}_{ser} \times {S}_{cha} 
 \end{equation}
 
 where each component represents distinct aspects of the system state:
 
-\textbf{Computational State ($\mathcal{C}$):} This component characterizes the UAV's local computational resources and task processing status:
+\textbf{Local Device State ($S_{loc}$):} This component characterizes the UAV's local computational resources, task queue, and processing feedback:
 \begin{equation}
-\mathcal{C} = \{c_{avail}, c_{epochs}\}
+S_{\text{local}} = C_l \times E_r \times C_q \times T_q \times I_l \times I_o
 \end{equation}
-where $c_{avail} \in [0, 1]$ represents the normalized available computation units on the UAV, and $c_{epochs} \in [0, 1]$ denotes the remaining normalized epochs for task completion.
+where $C_l$ represents available computation units, $E_r$ denotes remaining epochs, $C_q$ and $T_q$ capture queue computation units and processing times, and $I_l, I_o$ provide binary success indicators for local and offload operations. 
 
-\textbf{Queue State ($\mathcal{Q}$):} This captures the current status of the UAV's task buffer and processing queue:
+\textbf{Environmental Context ($S_{con}$):} This encompasses dynamic environmental conditions:
 \begin{equation}
-\mathcal{Q} = \{q_{units}, q_{times}, q_{success}\}
+S_{\text{context}} = V \times C
 \end{equation}
-where $q_{units} \in [0, 1]$ represents the normalized queue computation requirements, $q_{times} \in [0, 1]$ indicates normalized processing times, and $q_{success} \in \{0, 1\}^2$ provides binary success indicators for local and offload operations.
+where $V$ represents normalized velocity context, and $C$ indicates normalized computation capacity context. The minimum and the maximum velocities are set to 30 and 100, respectively,
+        self._COMP_MAX = 120.0  # your randint upper bound
 
-\textbf{Environment State ($\mathcal{E}$):} This component models the external MEC infrastructure and network conditions:
+\textbf{Server State ($S_{ser}$):} This component models the MEC and cloud infrastructure availability:
 \begin{equation}
-\mathcal{E} = \{e_{mec\_units}, e_{mec\_times}\}
+S_{\text{server}} = S_{\text{mec}} \times S_{\text{cloud}}
 \end{equation}
-where $e_{mec\_units} \in [0, 1]$ represents normalized available MEC server computation units, and $e_{mec\_times} \in [0, 1]$ denotes normalized MEC processing times.
+where $S_{\text{mec}} = C_m^K \times T_m^K$ and $S_{\text{cloud}} = C_c^K \times T_c^K$, with $C_m, C_c \in [0, 1]^K$ representing normalized computation units and $T_m, T_c \in [0, 1]^K$ denoting processing times for $K$ tasks in the server queues.
 
-\textbf{Vehicle Context ($\mathcal{V}$):} This encompasses UAV-specific contextual information:
+\textbf{Channel State ($S_{cha}$):} This captures the wireless communication quality:
 \begin{equation}
-\mathcal{V} = \{v_{velocity}, v_{capacity}\}
+S_{\text{channel}} = Q
 \end{equation}
-where $v_{velocity} \in [0, 1]$ represents normalized agent velocity, and $v_{capacity} \in [0, 1]$ indicates normalized computation capacity.
+where $Q \in \{1, 2, \ldots, Q_{\max}\}$ represents discrete channel quality levels.
+
+All continuous values are normalized to the inverval $[0, 1]$ to ensure stable neural network training, while binary indicators take values in $\{0, 1\}$ to encode operation success
 
 The complete state vector at time $t$ is represented as:
 \begin{equation}
-s_t = (c_{avail}^{(t)}, c_{epochs}^{(t)}, q_{units}^{(t)}, q_{times}^{(t)}, q_{success}^{(t)}, e_{mec\_units}^{(t)}, e_{mec\_times}^{(t)}, v_{velocity}^{(t)}, v_{capacity}^{(t)})
+s_t = (C_l^{(t)}, E_r^{(t)}, C_q^{(t)}, T_q^{(t)}, I_l^{(t)}, I_o^{(t)}, Q^{(t)}, C_m^{(t)}, T_m^{(t)}, C_c^{(t)}, T_c^{(t)}, V^{(t)}, C^{(t)})
 \end{equation}
 
-All state components are normalized to $[0, 1]$ to ensure stable neural network training and enable effective knowledge transfer across different environmental configurations.
+All continuous state components are normalized to $[0, 1]$ to ensure stable neural network training and enable effective knowledge transfer across different environmental configurations.
+
 
 \subsection{Action Space}
 
