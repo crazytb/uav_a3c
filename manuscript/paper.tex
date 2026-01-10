@@ -188,9 +188,10 @@ In the POMDP formulation, the state space $\mathcal{S}$ consists of both observa
 We formally decompose the state space into observable and hidden components:
 
 \begin{equation}
-\mathcal{S} = \mathcal{O} \times \mathcal{H}
+\mathcal{S} = \mathcal{S}_{endo} \times \mathcal{S}_{exo}
 \end{equation}
-where $\mathcal{O} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents the observable state space directly accessible to UAV agents through local sensing and edge server feedback, and $\mathcal{H} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents the hidden state space that must be inferred through sequential observations and recurrent processing.
+where $\mathcal{S}_{endo} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents \textbf{endogenous states} whose transitions are directly influenced by agent actions (controllable dynamics), and $\mathcal{S}_{exo} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents \textbf{exogenous states} whose transitions are uncontrollable due to the asynchronous nature for cloud information ($\mathbf{S_{cloud}}$) or is hidden to each UAV agent for wireless channel state ($\mathbf{S_{channel}}$).
+
 
 \subsubsection{Observable State Components}
 
@@ -204,13 +205,13 @@ where $\mathbf{C_l} = [0, 1]$ represents a set of available computation units, $
 
 \textbf{Environmental Context ($\mathbf{S_{context}}$):} This encompasses dynamic environmental conditions directly measurable by the UAV:
 \begin{equation}
-\mathbf{S_{\text{context}}} = \mathbf{V} \times \mathbf{C}
+\mathbf{S_{context}} = \mathbf{V} \times \mathbf{C}
 \end{equation}
 where $\mathbf{V} = [0, 1]$ represents normalized velocity context, and $\mathbf{C} = [0, 1]$ indicates normalized local computation capacity context. We set the minimum and the maximum velocities to \SI{30}{km/h} and \SI{100}{km/h}~\cite{3GPP_TS_22.125}, respectively, and $\mathbf{V}$ is normalized according to these marginal velocity values.
 
 \textbf{MEC Server State ($\mathbf{S_{mec}}$):} This component captures the observable state of nearby, or physically attached mobile edge computing servers through feedback mechanisms:
 \begin{equation}
-\mathbf{S_{\text{mec}}} = \mathbf{C_m} \times \mathbf{T_m}
+\mathbf{S_{{mec}}} = \mathbf{C_m} \times \mathbf{T_m}
 \end{equation}
 where $\mathbf{C_m} = \prod_{k \in K} \mathbf{C_{m,k}}$ represents normalized computation units, with $\mathbf{C_{m,k}} = [0, 1]$ for each task $k \in K$, and $\mathbf{T_m} = \prod_{k \in K} \mathbf{T_{m,k}}$ denotes processing times, with $\mathbf{T_{m,k}} = [0, 1]$ for each task $k \in K$. UAV agents can observe MEC state through acknowledgement messages and status updates from edge infrastructure.
 
@@ -220,13 +221,13 @@ The hidden state components represent system information not directly observable
 
 \textbf{Cloud Server State ($\mathbf{S_{cloud}}$):} This component models the remote cloud infrastructure availability in the core network, which is hidden from direct UAV observation because of the aggregated nature of cloud resources serving numerous MEC servers simultaneously:
 \begin{equation}
-\mathbf{S_{\text{cloud}}} = \mathbf{C_c} \times \mathbf{T_c}
+\mathbf{S_{{cloud}}} = \mathbf{C_c} \times \mathbf{T_c}
 \end{equation}
 where $\mathbf{C_c} = \prod_{k \in K} \mathbf{C_{c,k}}$ represents normalized computation units, with $\mathbf{C_{c,k}} = [0, 1]$ for each task $k \in K$, and $\mathbf{T_c} = \prod_{k \in K} \mathbf{T_{c,k}}$ denotes processing times, with $\mathbf{T_{c,k}} = [0, 1]$ for each task $k \in K$. The shared and distributed architecture of cloud infrastructure, coupled with the large number of attached MEC nodes, makes direct state monitoring infeasible from individual UAV perspectives.
 
 \textbf{Channel State ($\mathbf{S_{channel}}$):} This captures the wireless communication quality between UAV and infrastructure as
 \begin{equation}
-\mathbf{S_{\text{channel}}} = \mathbf{Q}
+\mathbf{S_{{channel}}} = \mathbf{Q}
 \end{equation}
 where $\mathbf{Q} \in \{0, 1\}$ denotes binary channel quality indicators, with 0 and 1 representing bad and good channel states, respectively. The channel state follows a finite-state Markov channel (FSMC) formulation, adopting a two-state representation derived from the Gilbert–Elliott model~\cite{gilbert1960capacity,elliott1963estimates} for Rayleigh fading channels~\cite{zhang1999finite}.
 
@@ -246,51 +247,160 @@ where $\mathbf{Q} \in \{0, 1\}$ denotes binary channel quality indicators, with 
 The action space $\mathcal{A}$ in the ATLAS framework defines the discrete set of decisions available to each UAV agent when processing incoming computational tasks. We formulate the action space as a finite discrete set:
 
 \begin{equation}
-\mathcal{A} = \{a_{LOC}, a_{OFF}, a_{DIS}\} = \{0, 1, 2\}
+\mathcal{A} = \{0, 1, 2\}
 \end{equation}
+where where 0, 1, and 2 stand for each defined action, respectively. A specific procedure will be stated as follows.
 
-Each action corresponds to a distinct task processing strategy with specific operational characteristics:
-
-\textbf{Local Processing ($a_{LOC} = 0$):} When this action is selected, the UAV processes the computational task using its onboard computing resources. This action is optimal when:
 \begin{itemize}
-\item Local computational capacity is sufficient for the task requirements
-\item Network connectivity to MEC servers is poor or unavailable  
-\item Energy consumption for local processing is acceptable
-\item Processing latency requirements can be met locally
+\item \textbf{Local Processing ($a = 0$):} When this action is selected, the UAV processes the computational task using its associating MEC server. The local processing action triggers immediate computation on the UAV, consuming local computational resources but avoiding transmission delays and potential network failures.
+\item \textbf{Offloading ($a = 1$):} This action involves transmitting the computational task to available cloud servers for remote processing. The offloading action incurs transmission energy costs and may introduces network-dependent failures, but potentially reduces local computational load and enables processing of resource-intensive tasks.
+\item \textbf{Task Discard ($a = 2$):} When system conditions are unfavorable for both local processing and offloading, because of insufficient local resources, saturated server queues, or poor channel conditions that prevent successful task completion, the agent may choose to discard the task. Task discard minimizes immediate resource consumption but results in task failure penalties in the reward function.
 \end{itemize}
-
-The local processing action triggers immediate computation on the UAV, consuming local energy resources but avoiding transmission delays and potential network failures.
-
-\textbf{Offloading ($a_{OFF} = 1$):} This action involves transmitting the computational task to available MEC servers for remote processing. Offloading is advantageous when:
-\begin{itemize}
-\item Local computational resources are insufficient or overloaded
-\item MEC servers have available capacity and favorable processing times
-\item Network conditions support reliable task transmission
-\item Total offloading latency (transmission + processing + result retrieval) is acceptable
-\end{itemize}
-
-The offloading action incurs transmission energy costs and introduces network-dependent delays, but potentially reduces local computational load and enables processing of resource-intensive tasks.
-
-\textbf{Task Discard ($a_{DIS} = 2$):} When system conditions are unfavorable for both local processing and offloading, the agent may choose to discard the task. This action is selected when:
-\begin{itemize}
-\item Local resources are critically low 
-\item MEC servers are overloaded or unreachable
-\item Task deadline cannot be met through any processing option
-\item Energy conservation is prioritized over task completion
-\end{itemize}
-
-Task discard minimizes immediate resource consumption but results in task failure penalties in the reward function.
-
-The discrete action formulation enables straightforward policy optimization through categorical probability distributions, allowing the neural network to output action probabilities $\pi(a_t|s_t)$ for effective exploration and exploitation during training.
 
 \subsection{State Transition Function}
 
-The state transition function $\mathcal{P}: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \rightarrow [0,1]$ defines the probability distribution over next states given the current state and action. In the ATLAS framework, state transitions are governed by the dynamics of the UAV environment, task processing outcomes, and system resource evolution.
-
-The transition probability can be expressed as:
+The state transition function $\mathcal{P}: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \rightarrow [0,1]$ defines the probability distribution over next states given the current state and action. We denote the current state $s$ and next state $s'$ as:
 \begin{equation}
-\mathcal{P}(s_{t+1}|s_t, a_t) = P(s_{t+1} = (c', q', e', v')|s_t = (c, q, e, v), a_t)
+    s = \{c_l, e_r, c_q, t_q, i_l, i_o, \mathbf{c}_m, \mathbf{t}_m, v, c\}
 \end{equation}
+and
+\begin{equation}
+    s' = \{c_l', e_r', c_q', t_q', i_l', i_o', \mathbf{c}_m', \mathbf{t}_m', v', c'\}
+\end{equation}
+where $\mathbf{c}_m, \mathbf{t}_m \in \mathbb{R}^K$ represent MEC queue state vectors.
+
+The complete transition function can be decomposed into \textbf{endogenous} (action-dependent) and \textbf{exogenous} (action-independent) components:
+\begin{equation}
+    \Pr[s' | s, a] = \Pr[s_{\text{endo}}' | s, a] \times \Pr[s_{\text{exo}}' | s]
+\end{equation}
+
+The endogenous components ($c_l, e_r, i_l, i_o, \mathbf{c}_m, \mathbf{t}_m$) evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components ($c_q, t_q, v, c$) evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
+
+
+\subsubsection{Endogenous State Transitions}
+
+The endogenous components are directly influenced by the agent's actions and evolve according to system dynamics:
+
+\begin{equation}
+\begin{split}
+\Pr[s_{\text{endo}}' | s, a] &= \Pr[c_l' | c_l, c_q, a] \\
+&\times \Pr[e_r' | e_r] \\
+&\times \Pr[i_l' | c_l, c_q, \mathbf{c}_m, a] \\
+&\times \Pr[i_o' | c_q, a] \\
+&\times \prod_{k=1}^{K} \Pr[c_{m,k}' | c_{m,k}, t_{m,k}, a] \\
+&\times \prod_{k=1}^{K} \Pr[t_{m,k}' | t_{m,k}]
+\end{split}
+\end{equation}
+
+% \textbf{Local Computation Units ($c_l$):} [설명...]
+
+% \textbf{Remaining Epochs ($e_r$):} [설명...]
+
+% \textbf{Success Indicators ($i_l, i_o$):} [설명...]
+
+% \textbf{MEC Server State ($\mathbf{c}_m, \mathbf{t}_m$):} [설명...]
+
+\subsubsection{Exogenous State Transitions}
+
+The exogenous components evolve independently of the agent's actions and model external task arrivals and environmental variations:
+
+\begin{equation}
+\Pr[s_{\text{exo}}' | s] = \Pr[c_q'] \times \Pr[t_q'] \times \Pr[v'] \times \Pr[c']
+\end{equation}
+
+\textbf{Queue Task Arrivals ($c_q, t_q$):} New tasks arrive at each time step with computational requirements and processing times sampled from uniform distributions:
+\begin{equation}
+c_q' \sim \text{Uniform}(1, 200), \quad t_q' \sim \text{Uniform}(1, 50)
+\end{equation}
+This stochastic arrival process models the unpredictable workload in real-world UAV applications.
+
+\textbf{Environmental Context ($v, c$):} Velocity and computation capacity contexts remain constant within an episode, representing the environmental configuration:
+\begin{equation}
+v' = v, \quad c' = c
+\end{equation}
+
+The complete state transition function combines both components:
+\begin{equation}
+\Pr[s' | s, a] = \Pr[s_{\text{endo}}' | s, a] \times \Pr[s_{\text{exo}}' | s]
+\end{equation}
+
+
+% The discrete action formulation enables straightforward policy optimization through categorical probability distributions, allowing the neural network to output action probabilities $\pi(a_t|s_t)$ for effective exploration and exploitation during training.
+
+% \subsection{State Transition Function}
+
+% The state transition function $\mathcal{P}: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \rightarrow [0,1]$ defines the probability distribution over next states given the current state and action. In the ATLAS framework, state transitions are governed by the dynamics of the UAV environment, task processing outcomes, and system resource evolution.
+
+% We denote two arbitrary states, the current state $s$ and the next state $s'$ in $\mathcal{S}$ as
+% \begin{equation}
+%     s = \{c_l, e_r, c_q, t_q, i_l, i_o, v, c, c_m, t_m, c_c, t_c, q\}
+% \end{equation}
+% and
+% \begin{equation}
+%     s' = \{c_l', e_r', c_q', t_q', i_l', i_o', v', c', c_m', t_m', c_c', t_c', q'\}
+% \end{equation}
+% where all components belong to their respective state spaces as defined in the state space formulation.
+
+% % The transition probability can be expressed as:
+% % \begin{equation}
+% % \mathcal{P}(s_{t+1}|s_t, a_t) = P(s_{t+1} = (c', q', e', v')|s_t = (c, q, e, v), a_t)
+% % \end{equation}
+
+% \subsection{State Transition Function}
+
+% The state transition function $\mathcal{P}: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \rightarrow [0,1]$ defines the probability distribution over next states given the current state and action. In the ATLAS framework, state transitions are governed by the dynamics of the UAV environment, task processing outcomes, and system resource evolution.
+
+% We denote two arbitrary states, the current state $s$ and the next state $s'$ in $\mathcal{S}$ as
+% \begin{equation}
+%     s = \{c_l, e_r, c_q, t_q, i_l, i_o, \mathbf{c}_m, \mathbf{t}_m, v, c, q, \mathbf{c}_c, \mathbf{t}_c\}
+% \end{equation}
+% and
+% \begin{equation}
+%     s' = \{c_l', e_r', c_q', t_q', i_l', i_o', \mathbf{c}_m', \mathbf{t}_m', v', c', q', \mathbf{c}_c', \mathbf{t}_c'\}
+% \end{equation}
+% where $\mathbf{c}_m, \mathbf{t}_m, \mathbf{c}_c, \mathbf{t}_c \in \mathbb{R}^K$ are $K$-dimensional vectors representing MEC and cloud server queue states, and all other components are scalars. Note that channel quality $q$ and cloud states $\mathbf{c}_c, \mathbf{t}_c$ are hidden (not directly observable), while the remaining components constitute the observable state space.
+
+% The state transition function can be decomposed as:
+% \begin{equation}
+% \begin{split}
+% \Pr[s' | s, a] &= \Pr[c_l' | c_l, c_q, a] \\
+% &\times \Pr[e_r' | e_r] \\
+% &\times \Pr[c_q' | c_q] \\
+% &\times \Pr[t_q' | t_q] \\
+% &\times \Pr[i_l' | c_l, c_q, \mathbf{c}_m, a] \\
+% &\times \Pr[i_o' | \mathbf{c}_c, c_q, q, a] \\
+% &\times \prod_{k=1}^{K} \Pr[c_{m,k}' | c_{m,k}, t_{m,k}, a] \\
+% &\times \prod_{k=1}^{K} \Pr[t_{m,k}' | t_{m,k}] \\
+% &\times \Pr[v'] \times \Pr[c'] \\
+% &\times \Pr[q' | q] \\
+% &\times \prod_{k=1}^{K} \Pr[c_{c,k}' | c_{c,k}, t_{c,k}, a] \\
+% &\times \prod_{k=1}^{K} \Pr[t_{c,k}' | t_{c,k}]
+% \end{split}
+% \end{equation}
+% where the first nine terms represent observable state transitions and the last three terms capture hidden state dynamics.
+
+
+
+% The state transition function is the probability of reaching state $s'$ from state $s$ when the agent takes action $a \in \{0, 1, 2\}$ (LOCAL, OFFLOAD, DISCARD). For clarity, we explain each state component's transition dynamics.
+
+% The state transition function can be expressed as:
+
+% \begin{equation}
+%     \begin{split}
+%         \Pr[s' | s, a] &= \Pr[C_l' | C_l, C_q, a] \\
+%         &\times \Pr[E_r' | E_r] \\
+%         &\times \Pr[C_q' | C_q] \\
+%         &\times \Pr[T_q' | T_q] \\
+%         &\times \Pr[I_l' | C_l, C_q, C_m, a] \\
+%         &\times \Pr[I_o' | C_c, C_q, Q, a] \\
+%         &\times \prod_{k=1}^{K} \Pr[C_{m,k}' | C_{m,k}, T_{m,k}, a] \\
+%         &\times \prod_{k=1}^{K} \Pr[T_{m,k}' | T_{m,k}] \\
+%         &\times \Pr[V'] \\
+%         &\times \Pr[C']
+%     \end{split}
+% \end{equation}
+
+
 
 The state transition dynamics are influenced by several key factors:
 
@@ -439,6 +549,46 @@ Our evaluation framework includes the following key metrics:
 \item Statistical significance of performance differences
 \item Cross-environment generalization performance
 \end{itemize}
+
+\begin{algorithm*}[ht!]
+\caption{Training phase of ATLAS using A3C with RNN}
+\begin{algorithmic}[1]
+    \State Initialize global actor-critic network $\theta$ with recurrent architecture
+    \State Initialize shared optimizer and cloud resource state $\mathcal{R}_{\text{cloud}}$
+    \For{each worker $w \in \{1, \ldots, W\}$ \textbf{in parallel}}
+        \State $\theta_w \gets \theta$ \Comment{Copy global parameters}
+        \For{episode $e = 1$ to $E_{\max}$}
+            \State Initialize state $s_0$ and RNN hidden state $h_0 \gets \mathbf{0}$
+            \While{episode not terminated}
+                \State \textbf{// Collect T-step rollout}
+                \For{$t = 0$ to $T-1$}
+                    \State Compute $\pi(\cdot | s_t, h_t; \theta_w)$ and $V(s_t, h_t; \theta_w)$
+                    \State Sample $a_t \sim \pi(\cdot | s_t, h_t; \theta_w)$
+                    \State Execute $a_t$, observe $r_t$ and $s_{t+1}$
+                    \State Update $h_{t+1}$ via GRU; if done, $h_{t+1} \gets \mathbf{0}$
+                \EndFor
+                \State \textbf{// Compute returns and advantages}
+                \State Bootstrap $R \gets V(s_T, h_T; \theta_w)$ if not done, else $R \gets 0$
+                \For{$t = T-1$ down to $0$}
+                    \State $R \gets r_t + \gamma R$; $A_t \gets R - V(s_t, h_t; \theta_w)$
+                \EndFor
+                \State \textbf{// Compute loss}
+                \State $\mathcal{L} \gets -\sum_t \log \pi(a_t | s_t, h_t; \theta_w) A_t + \beta_v \sum_t (R_t - V_t)^2 - \beta_h \mathcal{H}(\pi)$
+                \State \textbf{// Asynchronous update}
+                \State Compute gradients $\nabla_{\theta_w} \mathcal{L}$ and clip
+                \State Copy gradients to global: $\nabla_{\theta} \gets \nabla_{\theta_w}$
+                \State Update global: $\theta \gets \theta - \alpha \nabla_{\theta}$ (SharedAdam)
+                \State Synchronize local: $\theta_w \gets \theta$
+            \EndWhile
+        \EndFor
+    \EndFor
+    \State \textbf{return} Trained global network $\theta$
+\end{algorithmic}
+\label{alg:atlas}
+\end{algorithm*}
+
+
+
 
 % Experimental Setup
 \section{Experimental Setup}
