@@ -1,3 +1,5 @@
+% LTeX: enabled=false
+
 \documentclass[journal]{IEEEtran}
 % \documentclass[lettersize,journal]{IEEEtran}
 
@@ -188,9 +190,10 @@ In the POMDP formulation, the state space $\mathcal{S}$ consists of both observa
 We formally decompose the state space into observable and hidden components:
 
 \begin{equation}
+\label{eq:S}
 \mathcal{S} = \mathcal{S}_{endo} \times \mathcal{S}_{exo}
 \end{equation}
-where $\mathcal{S}_{endo} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents \textbf{endogenous states} whose transitions are directly influenced by agent actions (controllable dynamics), and $\mathcal{S}_{exo} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents \textbf{exogenous states} whose transitions are uncontrollable due to the asynchronous nature for cloud information ($\mathbf{S_{cloud}}$) or is hidden to each UAV agent for wireless channel state ($\mathbf{S_{channel}}$).
+where $\mathcal{S}_{endo} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents \textbf{endogenous states} whose transitions are agent-internal (controllable dynamics), and $\mathcal{S}_{exo} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents \textbf{exogenous states} whose transitions are uncontrollable due to the asynchronous nature for cloud information ($\mathbf{S_{cloud}}$) or is hidden to each UAV agent for wireless channel state ($\mathbf{S_{channel}}$).
 
 
 \subsubsection{Observable State Components}
@@ -261,18 +264,19 @@ where where 0, 1, and 2 stand for each defined action, respectively. A specific 
 
 The state transition function $\mathcal{P}: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \rightarrow [0,1]$ defines the probability distribution over next states given the current state and action. We denote the current state $s$ and next state $s'$ as:
 \begin{equation}
-    s = \{c_l, e_r, c_q, t_q, i_l, i_o, \mathbf{c}_m, \mathbf{t}_m, v, c\}
+    s = \{c_l, e_r, c_q, t_q, i_l, i_o, v, c, \mathbf{c}_m, \mathbf{t}_m, \mathbf{c}_c, \mathbf{t}_c, q\}
 \end{equation}
 and
 \begin{equation}
-    s' = \{c_l', e_r', c_q', t_q', i_l', i_o', \mathbf{c}_m', \mathbf{t}_m', v', c'\}
+    s' = \{c_l', e_r', c_q', t_q', i_l', i_o', v', c', \mathbf{c}_m', \mathbf{t}_m', \mathbf{c}_c', \mathbf{t}_c', q'\}
 \end{equation}
-where $\mathbf{c}_m, \mathbf{t}_m \in \mathbb{R}^K$ represent MEC queue state vectors.
+where $\mathbf{c}_m, \mathbf{t}_m, \in \mathbb{R}^K$ and $\mathbf{c}_c, \mathbf{t}_c \in \mathbb{R}^K$ represent local-side MEC and cloud server-side queue state vectors, respectively.
 
-The complete transition function can be decomposed into \textbf{endogenous} (action-dependent) and \textbf{exogenous} (action-independent) components:
+The complete transition function can be decomposed into \textbf{endogenous} (agent-internal) and \textbf{exogenous} (agent-external or environment-driven) components, as mentioned in~\eqref{eq:S}:
 \begin{equation}
-    \Pr[s' | s, a] = \Pr[s_{\text{endo}}' | s, a] \times \Pr[s_{\text{exo}}' | s]
+    \Pr[s' | s, a] = \Pr[s_{\text{endo}}' | s, a] \times \Pr[s_{\text{exo}}' | s],
 \end{equation}
+making sure that the dynamics of exogenous states are independent from the agent's action.
 
 The endogenous components ($c_l, e_r, i_l, i_o, \mathbf{c}_m, \mathbf{t}_m$) evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components ($c_q, t_q, v, c$) evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
 
