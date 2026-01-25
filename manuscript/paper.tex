@@ -191,9 +191,9 @@ We formally decompose the state space into observable and hidden components:
 
 \begin{equation}
 \label{eq:S}
-\mathcal{S} = \mathcal{S}_{endo} \times \mathcal{S}_{exo}
+\mathcal{S} = \mathcal{S}_{obs} \times \mathcal{S}_{hidden}
 \end{equation}
-where $\mathcal{S}_{endo} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents \textbf{endogenous states} whose transitions are agent-internal (controllable dynamics), and $\mathcal{S}_{exo} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents \textbf{exogenous states} whose transitions are uncontrollable due to the asynchronous nature for cloud information ($\mathbf{S_{cloud}}$) or is hidden to each UAV agent for wireless channel state ($\mathbf{S_{channel}}$).
+where $\mathcal{S}_{obs} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents \textbf{observable states} directly measurable by the UAV agent, and $\mathcal{S}_{hidden} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents \textbf{hidden states} that are not directly observable due to the asynchronous nature of cloud information ($\mathbf{S_{cloud}}$) or limitations in wireless channel sensing ($\mathbf{S_{channel}}$). The recurrent neural network architecture enables the agent to maintain internal memory and infer hidden state components through temporal patterns in observable measurements.
 
 
 \subsubsection{Observable State Components}
@@ -274,12 +274,10 @@ where $\mathbf{c}_m, \mathbf{t}_m, \in \mathbb{R}^K$ and $\mathbf{c}_c, \mathbf{
 
 The complete transition function can be decomposed into \textbf{endogenous} (agent-internal) and \textbf{exogenous} (agent-external or environment-driven) components, as mentioned in~\eqref{eq:S}:
 \begin{equation}
-    \Pr[s' | s, a] = \Pr[s_{\text{endo}}' | s, a] \times \Pr[s_{\text{exo}}' | s],
+    \Pr[s' | s, a] = \Pr[s_{endo}' | s, a] \times \Pr[s_{exo}' | s],
 \end{equation}
-making sure that the dynamics of exogenous states are independent from the agent's action.
-
-The endogenous components ($c_l, e_r, i_l, i_o, \mathbf{c}_m, \mathbf{t}_m$) evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components ($c_q, t_q, v, c$) evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
-
+where $s_{endo}' \in \mathcal{S}_{endo}$ and $s_{exo}' \in \mathcal{S}_{exo}$, respectively,
+making sure that the dynamics of exogenous states are independent from the agent's action. The endogenous components evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
 
 \subsubsection{Endogenous State Transitions}
 
