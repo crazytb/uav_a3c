@@ -184,6 +184,7 @@ The primary objective is to learn an optimal policy $\pi^*$ that maximizes the e
 This formulation enables UAV agents to balance multiple competing objectives including energy efficiency, processing latency minimization, and task completion success rates in dynamic edge computing scenarios.
 
 \subsection{State Space}
+\label{subsec:state}
 
 In the POMDP formulation, the state space $\mathcal{S}$ consists of both observable and hidden components, reflecting the partial observability inherent in multi-UAV edge computing environments. UAV agents can directly observe their local states, environmental context, and nearby MEC server status through edge feedback, while remote cloud infrastructure and wireless channel conditions remain hidden due to limited sensing capabilities and communication constraints.
 
@@ -191,9 +192,9 @@ We formally decompose the state space into observable and hidden components:
 
 \begin{equation}
 \label{eq:S}
-\mathcal{S} = \mathcal{S}_{obs} \times \mathcal{S}_{hidden}
+\mathcal{S} = \mathcal{S}_{obs} \times \mathcal{S}_{hid}
 \end{equation}
-where $\mathcal{S}_{obs} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents \textbf{observable states} directly measurable by the UAV agent, and $\mathcal{S}_{hidden} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents \textbf{hidden states} that are not directly observable due to the asynchronous nature of cloud information ($\mathbf{S_{cloud}}$) or limitations in wireless channel sensing ($\mathbf{S_{channel}}$). The recurrent neural network architecture enables the agent to maintain internal memory and infer hidden state components through temporal patterns in observable measurements.
+where $\mathcal{S}_{obs} = \mathbf{S_{local}} \times \mathbf{S_{context}} \times \mathbf{S_{mec}}$ represents \textbf{observable states} directly measurable by the UAV agent, and $\mathcal{S}_{hid} = \mathbf{S_{cloud}} \times \mathbf{S_{channel}}$ represents \textbf{hidden states} that are not directly observable due to the asynchronous nature of cloud information ($\mathbf{S_{cloud}}$) or limitations in wireless channel sensing ($\mathbf{S_{channel}}$). The recurrent neural network architecture enables the agent to maintain internal memory and infer hidden state components through temporal patterns in observable measurements.
 
 
 \subsubsection{Observable State Components}
@@ -204,19 +205,23 @@ The observable state components provide direct measurements available to each UA
 \begin{equation}
 \mathbf{S_{local}} = \mathbf{C_l} \times \mathbf{E_r} \times \mathbf{C_q} \times \mathbf{T_q} \times \mathbf{I_l} \times \mathbf{I_o}
 \end{equation}
-where $\mathbf{C_l} = [0, 1]$ represents a set of available computation units, $\mathbf{E_r} = [0, 1]$ denotes a set of remaining epochs during one episode, $\mathbf{C_q} = [0, 1]$ and $\mathbf{T_q} = [0, 1]$ capture sets of queue computation units and processing times, and $\mathbf{I_l}, \mathbf{I_o} = \{0, 1\}$ provide binary success indicators for local and offload operations.
+where $\mathbf{C_l}$ represents a set of available computation units, $\mathbf{E_r}$ denotes a set of remaining epochs during one episode, $\mathbf{C_q}$ and $\mathbf{T_q}$ capture sets of queue computation units and processing times, and $\mathbf{I_l}, \mathbf{I_o}$ provide binary success indicators for local and offload operations. Above-mentioned values are normalized within $[0, 1]$ to ensure stable neural network training and effective learning across different operational scales.
+
 
 \textbf{Environmental Context ($\mathbf{S_{context}}$):} This encompasses dynamic environmental conditions directly measurable by the UAV:
 \begin{equation}
 \mathbf{S_{context}} = \mathbf{V} \times \mathbf{C}
 \end{equation}
-where $\mathbf{V} = [0, 1]$ represents normalized velocity context, and $\mathbf{C} = [0, 1]$ indicates normalized local computation capacity context. We set the minimum and the maximum velocities to \SI{30}{km/h} and \SI{100}{km/h}~\cite{3GPP_TS_22.125}, respectively, and $\mathbf{V}$ is normalized according to these marginal velocity values.
+% where $\mathbf{V}$ represents normalized velocity context, and $\mathbf{C}$ indicates normalized local computation capacity context. We set the minimum and the maximum velocities to \SI{30}{km/h} and \SI{100}{km/h}~\cite{3GPP_TS_22.125}, respectively, and $\mathbf{V}$ is normalized according to these marginal velocity values.
+
+where $\mathbf{V}$ represents normalized velocity context, and $\mathbf{C}$ indicates normalized local computation capacity context. We set the minimum and the maximum velocities to \SI{30}{km/h} and \SI{100}{km/h}~\cite{3GPP_TS_22.125}, respectively, and the computation capacity ranges from 0 to 200 units. Both $\mathbf{V}$ and $\mathbf{C}$ are normalized to $[0, 1]$ according to their respective marginal values.
+
 
 \textbf{MEC Server State ($\mathbf{S_{mec}}$):} This component captures the observable state of nearby, or physically attached mobile edge computing servers through feedback mechanisms:
 \begin{equation}
 \mathbf{S_{{mec}}} = \mathbf{C_m} \times \mathbf{T_m}
 \end{equation}
-where $\mathbf{C_m} = \prod_{k \in K} \mathbf{C_{m,k}}$ represents normalized computation units, with $\mathbf{C_{m,k}} = [0, 1]$ for each task $k \in K$, and $\mathbf{T_m} = \prod_{k \in K} \mathbf{T_{m,k}}$ denotes processing times, with $\mathbf{T_{m,k}} = [0, 1]$ for each task $k \in K$. UAV agents can observe MEC state through acknowledgement messages and status updates from edge infrastructure.
+where $\mathbf{C_m} = \prod_{k \in K} \mathbf{C_{m,k}}$ represents ongoing computation units for each task $k \in K$, and $\mathbf{T_m} = \prod_{k \in K} \mathbf{T_{m,k}}$ denotes Corresponding processing times for each task $k \in K$. UAV agents can observe MEC state through acknowledgement messages and status updates from edge infrastructure.
 
 \subsubsection{Hidden State Components}
 
@@ -226,14 +231,13 @@ The hidden state components represent system information not directly observable
 \begin{equation}
 \mathbf{S_{{cloud}}} = \mathbf{C_c} \times \mathbf{T_c}
 \end{equation}
-where $\mathbf{C_c} = \prod_{k \in K} \mathbf{C_{c,k}}$ represents normalized computation units, with $\mathbf{C_{c,k}} = [0, 1]$ for each task $k \in K$, and $\mathbf{T_c} = \prod_{k \in K} \mathbf{T_{c,k}}$ denotes processing times, with $\mathbf{T_{c,k}} = [0, 1]$ for each task $k \in K$. The shared and distributed architecture of cloud infrastructure, coupled with the large number of attached MEC nodes, makes direct state monitoring infeasible from individual UAV perspectives.
+where $\mathbf{C_c} = \prod_{k \in K} \mathbf{C_{c,k}}$ represents ongoing computation units for each task $k \in K$, and $\mathbf{T_c} = \prod_{k \in K} \mathbf{T_{c,k}}$ denotes processing times for each task $k \in K$. The shared and distributed architecture of cloud infrastructure, coupled with the large number of attached MEC nodes, makes direct state monitoring infeasible from individual UAV perspectives.
 
 \textbf{Channel State ($\mathbf{S_{channel}}$):} This captures the wireless communication quality between UAV and infrastructure as
 \begin{equation}
 \mathbf{S_{{channel}}} = \mathbf{Q}
 \end{equation}
 where $\mathbf{Q} \in \{0, 1\}$ denotes binary channel quality indicators, with 0 and 1 representing bad and good channel states, respectively. The channel state follows a finite-state Markov channel (FSMC) formulation, adopting a two-state representation derived from the Gilbert–Elliott model~\cite{gilbert1960capacity,elliott1963estimates} for Rayleigh fading channels~\cite{zhang1999finite}.
-
 
 % \subsubsection{Complete State Representation}
 
@@ -270,13 +274,17 @@ and
 \begin{equation}
     s' = \{c_l', e_r', c_q', t_q', i_l', i_o', v', c', \mathbf{c}_m', \mathbf{t}_m', \mathbf{c}_c', \mathbf{t}_c', q'\}
 \end{equation}
-where $\mathbf{c}_m, \mathbf{t}_m, \in \mathbb{R}^K$ and $\mathbf{c}_c, \mathbf{t}_c \in \mathbb{R}^K$ represent local-side MEC and cloud server-side queue state vectors, respectively.
+% where $\mathbf{c}_m, \mathbf{t}_m, \in \mathbb{R}^K$ and $\mathbf{c}_c, \mathbf{t}_c \in \mathbb{R}^K$ represent local-side MEC and cloud server-side queue state vectors, respectively. 
+Each component of the state vector is an element of a predefined domain in~\ref{subsec:state},
+e.g., $c_l \in \mathbf{C}_l$, and $c_l'$ denotes its value in the next state.
 
-The complete transition function can be decomposed into \textbf{endogenous} (agent-internal) and \textbf{exogenous} (agent-external or environment-driven) components, as mentioned in~\eqref{eq:S}:
+
+
+The complete transition function can be decomposed into \textbf{observable} and \textbf{hidden} components, as mentioned in~\eqref{eq:S}:
 \begin{equation}
-    \Pr[s' | s, a] = \Pr[s_{endo}' | s, a] \times \Pr[s_{exo}' | s],
+    \Pr[s' | s, a] = \Pr[s_{obs}' | s, a] \times \Pr[s_{hid}' | s],
 \end{equation}
-where $s_{endo}' \in \mathcal{S}_{endo}$ and $s_{exo}' \in \mathcal{S}_{exo}$, respectively,
+where $s_{obs}' \in \mathcal{S}_{obs}$ and $s_{hid}' \in \mathcal{S}_{hid}$, respectively,
 making sure that the dynamics of exogenous states are independent from the agent's action. The endogenous components evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
 
 \subsubsection{Endogenous State Transitions}
