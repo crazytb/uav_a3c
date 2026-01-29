@@ -287,9 +287,9 @@ The complete transition function can be decomposed into \textbf{observable} and 
 where $s_{obs}' \in \mathcal{S}_{obs}$ and $s_{hid}' \in \mathcal{S}_{hid}$, respectively,
 making sure that the dynamics of exogenous states are independent from the agent's action. The endogenous components evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
 
-\subsubsection{Endogenous State Transitions}
+\subsubsection{Observable State Transitions}
 
-The endogenous components are directly influenced by the agent's actions and evolve according to system dynamics:
+Observable state transitions are governed by the agent's action selection and are fully determined by the current observable state. These include resource consumption ($c_l$ updates), queue management ($\mathbf{c}_m, \mathbf{t}_m, \mathbf{c}_c, \mathbf{t}_c$ modifications), and action outcome indicators ($i_l, i_o$). In contrast to hidden state transitions, observable components evolve deterministically given the action and current resource availability.
 
 \begin{equation}
 \begin{split}
