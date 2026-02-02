@@ -284,8 +284,10 @@ The complete transition function can be decomposed into \textbf{observable} and 
 \begin{equation}
     \Pr[s' | s, a] = \Pr[s_{obs}' | s, a] \times \Pr[s_{hid}' | s],
 \end{equation}
-where $s_{obs}' \in \mathcal{S}_{obs}$ and $s_{hid}' \in \mathcal{S}_{hid}$, respectively,
-making sure that the dynamics of exogenous states are independent from the agent's action. The endogenous components evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
+where $s_{obs}' \in \mathcal{S}_{obs}$ and $s_{hid}' \in \mathcal{S}_{hid}$, respectively, making sure that the dynamics of exogenous states are independent from the agent's action. The endogenous components evolve according to controllable system dynamics influenced by the agent's actions, while the exogenous components evolve independently, modeling external task arrivals and environmental conditions. This decomposition explicitly separates controllable resource allocation from uncontrollable workload variations, enabling the agent to learn robust policies under stochastic task arrivals.
+
+where $s_{obs}' \in \mathcal{S}_{obs}$ represents the observable state components directly accessible to UAV agents, and external factors, such as channel quality $Q$ and cloud information, $C_c$ and $T_c$ influence state transitions without being part of the state representation. Observable state components include both action-dependent transitions and action-independent transitions. This formulation explicitly captures the partial observability arising from hidden wireless channel conditions and asynchronous multi-agent cloud resource competition, enabling agents to learn robust policies through implicit belief state inference via recurrent neural networks.
+
 
 \subsubsection{Observable State Transitions}
 
