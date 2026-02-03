@@ -372,27 +372,43 @@ t_{m,k}' &= \max\!\bigl(\tilde{t}_{m,k}-1,\;0\bigr),
 for each $k \in \{1,\dots,K\}$, after which active tasks are compacted to the leading positions of the queue vector.
 
 \subsubsection{Exogenous State Transitions}
-
-The exogenous components evolve independently of the agent's actions and model external task arrivals and environmental variations:
-
+% FROM HERE
+The exogenous components evolve independently of the agent's actions, comprising stochastic task arrivals, wireless channel dynamics, and fixed environmental context:
 \begin{equation}
-\Pr[s_{\text{exo}}' | s] = \Pr[c_q'] \times \Pr[t_q'] \times \Pr[v'] \times \Pr[c']
+P[s_{\text{exo}}' | s] = P[c_q'] \times P[t_q'] \times P[Q' | Q],
 \end{equation}
+with the environmental context satisfying $v' = v$ and $c' = c$ throughout each episode.
 
-\textbf{Queue Task Arrivals ($c_q, t_q$):} New tasks arrive at each time step with computational requirements and processing times sampled from uniform distributions:
+\textbf{Queue Task Arrivals ($c_q, t_q$):} A new computational task arrives at each decision epoch with computation units and processing time drawn independently from discrete uniform distributions:
 \begin{equation}
-c_q' \sim \text{Uniform}(1, 200), \quad t_q' \sim \text{Uniform}(1, 50)
+c_q' \sim \text{Uniform}(1, 200), \quad t_q' \sim \text{Uniform}(1, 50).
 \end{equation}
-This stochastic arrival process models the unpredictable workload in real-world UAV applications.
+These arrivals are mutually independent and independent of all other state variables, modeling the unpredictable workload in UAV task offloading scenarios.
 
-\textbf{Environmental Context ($v, c$):} Velocity and computation capacity contexts remain constant within an episode, representing the environmental configuration:
+\textbf{Channel State ($Q$):} The binary channel quality evolves as a two-state finite-state Markov channel (FSMC) based on the Gilbert--Elliott model~\cite{gilbert1960capacity,elliott1963estimates}, with transition rates governed by the Doppler effect~\cite{zhang1999finite}.
+The Doppler frequency is given by
 \begin{equation}
-v' = v, \quad c' = c
+f_d = \frac{v \cdot f_0}{c_{\text{light}}},
+\end{equation}
+where $f_0 = 5.9\,\text{GHz}$ is the carrier frequency (IEEE 802.11bd) and $c_{\text{light}}$ is the speed of light.
+The transition probabilities are parameterized by the normalized Doppler spread $\bar{f}_d = f_d \cdot T_p$, where $T_p$ denotes the decision epoch duration:
+\begin{equation}
+\begin{aligned}
+P[Q'{=}1 \mid Q{=}0] &= \frac{\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}}{\exp\!\bigl(\gamma_{\text{thr}}/\bar{\gamma}\bigr) - 1}, \\[4pt]
+P[Q'{=}0 \mid Q{=}1] &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}},
+\end{aligned}
+\end{equation}
+where $\gamma_{\text{thr}}$ and $\bar{\gamma}$ denote the SNR threshold and average SNR, respectively, and the complementary probabilities are $P[Q'{=}0\mid Q{=}0] = 1 - P[Q'{=}1\mid Q{=}0]$ and $P[Q'{=}1\mid Q{=}1] = 1 - P[Q'{=}0\mid Q{=}1]$.
+Both transition rates increase with velocity through $\bar{f}_d$, reflecting increased channel variability at higher UAV speeds.
+
+\textbf{Environmental Context ($v, c$):} Velocity and computation capacity are sampled once at episode initialization and remain constant throughout:
+\begin{equation}
+v' = v, \quad c' = c.
 \end{equation}
 
 The complete state transition function combines both components:
 \begin{equation}
-\Pr[s' | s, a] = \Pr[s_{\text{endo}}' | s, a] \times \Pr[s_{\text{exo}}' | s]
+P[s' | s, a] = P[s_{\text{endo}}' | s, a] \times P[s_{\text{exo}}' | s]
 \end{equation}
 
 
