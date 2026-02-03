@@ -324,11 +324,11 @@ where $c_l \in C_l$, $e_r \in E_r$, $c_q \in C_q$, $t_q \in T_q$, $i_l \in I_l$,
 \textbf{Local Computation Units ($c_l$):} Available local computation units evolve through resource consumption upon successful local processing and recovery upon MEC task completion.
 Define the local processing feasibility indicator:
 \begin{equation}
-\phi_l \triangleq \mathbf{1}[c_l \geq c_q]\;\cdot\;\mathbf{1}\!\left[\exists\, k \in \{1,\dots,K\}: c_{m,k} = 0\right]\;\cdot\;\mathbf{1}[c_q > 0].
+\phi_l \triangleq \mathbf{1}[c_l \geq c_q]\cdot\mathbf{1}\!\left[\exists\, k \in \{1,\dots,K\}: c_{m,k} = 0\right]\cdot\mathbf{1}[c_q > 0],
 \end{equation}
-The transition is given by
+where $\mathbf{1}[\cdot]$ denotes the indicator function, yielding 1 when the enclosed condition holds and 0 otherwise. This indicator means that $\phi_l = 1$ indicates that local processing is feasible: sufficient local resources are available, the MEC queue has capacity, and a pending task exists. Then the transition is given by
 \begin{equation}
-c_l' = c_l \;-\; c_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l \;+\; \sum_{k=1}^{K}\tilde{c}_{m,k}\;\cdot\;\mathbf{1}[\tilde{t}_{m,k}=1],
+c_l' = c_l - c_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l + \sum_{k=1}^{K}\tilde{c}_{m,k}\cdot\mathbf{1}[\tilde{t}_{m,k}=1],
 \end{equation}
 where $\tilde{c}_{m,k}$ and $\tilde{t}_{m,k}$ denote the intermediate MEC state after task enqueue but prior to completion processing, as formally defined below.
 The first negative term captures resource consumption when a task is successfully scheduled for local processing, while the summation captures resource recovery when MEC-scheduled tasks complete their processing.
@@ -342,7 +342,7 @@ e_r' = e_r - 1.
 The offload feasibility additionally depends on hidden state components $Q \in \mathcal{Z}$ and $\mathbf{c}_c \in \mathcal{Z}$.
 Define the offload feasibility indicator:
 \begin{equation}
-\phi_o \triangleq \mathbf{1}\!\left[\exists\, k: c_{c,k} = 0\right]\;\cdot\;\mathbf{1}[c_q > 0]\;\cdot\;\mathbf{1}[Q = 1]\;\cdot\;\mathbf{1}[C_c^{\mathrm{avail}} \geq c_q],
+\phi_o \triangleq \mathbf{1}\!\left[\exists\, k: c_{c,k} = 0\right]\cdot\mathbf{1}[c_q > 0]\cdot\mathbf{1}[Q = 1]\cdot\mathbf{1}[C_c^{\mathrm{avail}} \geq c_q],
 \end{equation}
 where $C_c^{\mathrm{avail}}$ denotes the remaining shared cloud computation capacity across all UAV agents.
 The indicator transitions are
@@ -352,7 +352,7 @@ i_l' = \begin{cases}\phi_l & \text{if } a = 0,\\ i_l & \text{otherwise,}\end{cas
 i_o' = \begin{cases}\phi_o & \text{if } a = 1,\\ i_o & \text{otherwise.}\end{cases}
 \end{equation}
 
-\textbf{MEC Server State ($\mathbf{c}_m, \mathbf{t}_m$):} The MEC queue undergoes a three-phase update per decision epoch: enqueue, completion removal, and processing-time decrement.
+\textbf{MEC Server State (${c}_m, {t}_m$):} The MEC queue undergoes a three-phase update per decision epoch: enqueue, completion removal, and processing-time decrement.
 Let $\kappa = \min\{k: c_{m,k} = 0\}$ denote the first available queue slot.
 The intermediate queue state after task enqueue is
 \begin{equation}
