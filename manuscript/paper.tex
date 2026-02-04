@@ -309,13 +309,14 @@ The state transitions of $P(o'|o, z, a)$ are governed by the agent's action sele
 \begin{equation}
 \begin{split}
 &P(o' | o, z, a) \\
-&= P(c_l' | c_l, c_q, a) \\
+&= P(c_l' | c_l, c_q, t_q, \mathbf{c}_m, \mathbf{t}_m, a) \\
 &\times P(e_r' | e_r) \\
 &\times P(c_q') \\
 &\times P(t_q') \\
-&\times P(i_l', i_o' | c_l, c_q, c_m) \\
-&\times P(c_m' | c_m, c_q, a) \\
-&\times P(t_m' | t_m, t_q, a),
+&\times P(i_l' | i_l, c_l, c_q, \mathbf{c}_m, a) \\
+&\times P(i_o' | i_o, c_q, z, a) \\
+&\times P(\mathbf{c}_m' | c_l, c_q, t_q, \mathbf{c}_m, \mathbf{t}_m, a) \\
+&\times P(\mathbf{t}_m' | c_l, c_q, t_q, \mathbf{c}_m, \mathbf{t}_m, a),
 \end{split}
 \end{equation}
 where $c_l \in C_l$, $e_r \in E_r$, $c_q \in C_q$, $t_q \in T_q$, $i_l \in I_l$, $i_o \in I_o$, $c_m \in C_m$, and $t_m \in T_m$ denote the realizations of the corresponding state variables, and their primed counterparts represent the values at the next decision epoch.
@@ -337,6 +338,12 @@ The first negative term captures resource consumption when a task is successfull
 \begin{equation}
 e_r' = e_r - 1.
 \end{equation}
+
+\textbf{Queue Task Arrivals ($c_q, t_q$):} A new computational task arrives at each decision epoch with computation units and processing time drawn independently from discrete uniform distributions:
+\begin{equation}
+c_q' \sim \text{Uniform}(1, 200), \quad t_q' \sim \text{Uniform}(1, 50).
+\end{equation}
+These arrivals are mutually independent and independent of all other state variables, modeling the unpredictable workload in UAV task offloading scenarios.
 
 \textbf{Success Indicators ($i_l, i_o$):} Each indicator is updated only when the corresponding action is taken and retains its previous value otherwise.
 The offload feasibility additionally depends on hidden state components $Q \in \mathcal{Z}$ and $\mathbf{c}_c \in \mathcal{Z}$.
@@ -371,19 +378,18 @@ t_{m,k}' &= \max\!\bigl(\tilde{t}_{m,k}-1,\;0\bigr),
 \end{equation}
 for each $k \in \{1,\dots,K\}$, after which active tasks are compacted to the leading positions of the queue vector.
 
-\subsubsection{Exogenous State Transitions}
-% FROM HERE
-The exogenous components evolve independently of the agent's actions, comprising stochastic task arrivals, wireless channel dynamics, and fixed environmental context:
+\textbf{Environmental Context ($v, c$):} Velocity and computation capacity are sampled once at episode initialization and remain constant throughout:
 \begin{equation}
-P[s_{\text{exo}}' | s] = P[c_q'] \times P[t_q'] \times P[Q' | Q],
+v' = v, \quad c' = c.
 \end{equation}
-with the environmental context satisfying $v' = v$ and $c' = c$ throughout each episode.
 
-\textbf{Queue Task Arrivals ($c_q, t_q$):} A new computational task arrives at each decision epoch with computation units and processing time drawn independently from discrete uniform distributions:
+\subsubsection{Hidden State Transitions}
+
+The hidden state space $\mathcal{Z} = S_{cloud} \times S_{channel}$ evolves independently of the agent's actions.
+Among the hidden components, the channel state $Q \in S_{channel}$ evolves as an autonomous Markov process:
 \begin{equation}
-c_q' \sim \text{Uniform}(1, 200), \quad t_q' \sim \text{Uniform}(1, 50).
+P[z' | z] = P[Q' | Q].
 \end{equation}
-These arrivals are mutually independent and independent of all other state variables, modeling the unpredictable workload in UAV task offloading scenarios.
 
 \textbf{Channel State ($Q$):} The binary channel quality evolves as a two-state finite-state Markov channel (FSMC) based on the Gilbert--Elliott model~\cite{gilbert1960capacity,elliott1963estimates}, with transition rates governed by the Doppler effect~\cite{zhang1999finite}.
 The Doppler frequency is given by
@@ -401,14 +407,9 @@ P[Q'{=}0 \mid Q{=}1] &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}
 where $\gamma_{\text{thr}}$ and $\bar{\gamma}$ denote the SNR threshold and average SNR, respectively, and the complementary probabilities are $P[Q'{=}0\mid Q{=}0] = 1 - P[Q'{=}1\mid Q{=}0]$ and $P[Q'{=}1\mid Q{=}1] = 1 - P[Q'{=}0\mid Q{=}1]$.
 Both transition rates increase with velocity through $\bar{f}_d$, reflecting increased channel variability at higher UAV speeds.
 
-\textbf{Environmental Context ($v, c$):} Velocity and computation capacity are sampled once at episode initialization and remain constant throughout:
+The complete state transition function combines the observable and hidden components:
 \begin{equation}
-v' = v, \quad c' = c.
-\end{equation}
-
-The complete state transition function combines both components:
-\begin{equation}
-P[s' | s, a] = P[s_{\text{endo}}' | s, a] \times P[s_{\text{exo}}' | s]
+P(s' | s, a) = P(o' | o, z, a) \cdot P(z' | z).
 \end{equation}
 
 
