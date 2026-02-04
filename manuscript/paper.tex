@@ -176,7 +176,7 @@ Addressing these three research gaps, this paper presents a carefully designed A
 
 We formulate the multi-UAV task offloading optimization problem as a Partially Observable Markov Decision Process (POMDP), where each UAV agent operates as an intelligent decision maker in a dynamic edge computing environment. The POMDP framework enables UAV agents to make sequential decisions for incoming computational tasks while adapting to changing environmental conditions and resource availability. Furthermore, the POMDP formulation captures the inherent uncertainty in UAV operations, such as fluctuating network conditions and the computation capability of the cloud servers for task offloading.
 
-Formally, the ATLAS framework models the task offloading problem as a tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ is the action space, $\mathcal{P}$ is the state transition function, $\mathcal{R}$ is the reward function, and $\gamma \in [0,1]$ is the discount factor. At time $t$, each UAV agent can be in a state $s_t \in \mathcal{S}$, then selects an action $a_t \in \mathcal{A}$ according to its policy $\pi(a_t|s_t)$, and receives a reward $r_t = \mathcal{R}(s_t, a_t)$ while transitioning to the next state $s_{t+1} \sim \mathcal{P}(s_{t+1}|s_t, a_t)$.
+Formally, the ATLAS framework models the task offloading problem as a tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ is the action space, $\mathcal{P}$ is the state transition function, $\mathcal{R}$ is the reward function, and $\gamma \in [0,1]$ is the discount factor. Each UAV agent can be in a state $s \in \mathcal{S}$, then selects an action $a \in \mathcal{A}$ according to its policy $\pi(a|s)$, and receives a reward $r_t = \mathcal{R}(s, a)$ while transitioning to the next state $s' \sim \mathcal{P}(s'|s, a)$.
 
 The primary objective is to learn an optimal policy $\pi^*$ that maximizes the expected cumulative discounted reward:
 \begin{equation}
@@ -255,7 +255,7 @@ Although the hidden state components $\mathcal{Z}$ are not included in the UAVsâ
 
 % The complete state vector at time $t$ integrates both observable and hidden components:
 % \begin{equation}
-% s_t = (\underbrace{C_l^{(t)}, E_r^{(t)}, C_q^{(t)}, T_q^{(t)}, I_l^{(t)}, I_o^{(t)}, V^{(t)}, C^{(t)}, C_m^{(t)}, T_m^{(t)}}_{\text{Observable: } \mathcal{O}}, \underbrace{C_c^{(t)}, T_c^{(t)}, Q^{(t)}}_{\text{Hidden: } \mathcal{H}})
+% s = (\underbrace{C_l^{(t)}, E_r^{(t)}, C_q^{(t)}, T_q^{(t)}, I_l^{(t)}, I_o^{(t)}, V^{(t)}, C^{(t)}, C_m^{(t)}, T_m^{(t)}}_{\text{Observable: } \mathcal{O}}, \underbrace{C_c^{(t)}, T_c^{(t)}, Q^{(t)}}_{\text{Hidden: } \mathcal{H}})
 % \end{equation}
 
 % All continuous state components are normalized to $[0, 1]$ to ensure stable neural network training and enable effective knowledge transfer across different environmental configurations. The recurrent neural network architecture enables the agent to maintain internal memory of past observations and action outcomes, allowing implicit inference of hidden state components ($\mathcal{H}$) through temporal patterns in observable measurements ($\mathcal{O}$).
@@ -389,19 +389,35 @@ v' = v, \quad c' = c.
 
 \subsubsection{Hidden State Transitions}
 
-The hidden state space $\mathcal{Z} = S_{cloud} \times S_{channel}$ evolves independently of the agent's actions.
-Among the hidden components, the channel state $Q \in S_{channel}$ evolves as an autonomous Markov process:
-\begin{equation}
-P(z' | z) = P(q' | q)\cdot P(c_c', t_c' | c_c, t_c).
-\end{equation}
+The hidden state space $\mathcal{Z}=S_{\text{cloud}}\times S_{\text{channel}}$
+captures exogenous environment dynamics that are not directly observable by individual UAV agents.
+While these components influence state transitions and rewards, their evolution is not synchronized
+with the agent-level decision epochs.
 
-\textbf{Channel State ($q$):} The binary channel quality evolves as a two-state finite-state Markov channel (FSMC) based on the Gilbert--Elliott model~\cite{gilbert1960capacity,elliott1963estimates}, with transition rates governed by the Doppler effect~\cite{zhang1999finite}.
+Among the hidden components, the channel state $q\in Q$ evolves as an autonomous
+finite-state Markov process. The cloud state $c_c \in C_c$ and $t_c \in T_c$ follows queueing dynamics
+analogous to those of MEC servers; however, unlike MEC states, cloud queue information is not directly
+observable due to aggregation and shared access across multiple UAV agents.
+Moreover, the evolution of $c_c$ and $t_c$ is affected by successful offloading actions from other UAVs,
+rendering its dynamics asynchronous with respect to the local decision process of any individual agent.
+
+Accordingly, the hidden-state transition at each decision epoch is modeled as a snapshot of these
+exogenous processes, and is given by
+\begin{equation}
+P(z' \mid z)
+= P(q' \mid q)\cdot P(c_c',t_c' \mid c_c,t_c),
+\end{equation}
+where the cloud-state transition is treated as an exogenous stochastic process independent of the
+current agent's action.
+
+
+\textbf{Channel State ($q$):} The binary channel quality evolves as a two-state finite-state Markov channel (FSMC) based on the Gilbert--Elliott model~\cite{gilbert1960capacity,elliott1963estimates}, with transition rates governed by the Doppler effect~\cite{zhang1999finite}. 
+
 The Doppler frequency is given by
 \begin{equation}
 f_d = \frac{v \cdot f_0}{c_{\text{light}}},
 \end{equation}
-where $f_0 = 5.9\,\text{GHz}$ is the carrier frequency and $c_{\text{light}}$ is the speed of light.
-The transition probabilities are parameterized by the normalized Doppler spread $\bar{f}_d = f_d \cdot T_p$, where $T_p$ denotes the decision epoch duration:
+where $f_0 = 5.9\,\text{GHz}$ is the carrier frequency and $c_{\text{light}}$ is the speed of light. The transition probabilities are parameterized by the normalized Doppler spread $\bar{f}_d = f_d \cdot T_p$, where $T_p$ denotes the decision epoch duration:
 \begin{equation}
 \begin{aligned}
 P(q'{=}1 \mid q{=}0) &= \frac{\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}}{\exp\!\bigl(\gamma_{\text{thr}}/\bar{\gamma}\bigr) - 1}, \\[4pt]
@@ -411,32 +427,47 @@ P(q'{=}0 \mid q{=}1) &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}
 where $\gamma_{\text{thr}}$ and $\bar{\gamma}$ denote the SNR threshold and average SNR, respectively, and the complementary probabilities are $P(q'{=}0\mid q{=}0) = 1 - P(q'{=}1\mid q{=}0)$ and $P(q'{=}1\mid q{=}1) = 1 - P(q'{=}0\mid q{=}1)$.
 Both transition rates increase with velocity through $\bar{f}_d$, reflecting increased channel variability at higher UAV speeds.
 
-\textbf{Cloud Queue State ($\mathbf{C}_c, \mathbf{T}_c$):} The cloud queue evolves similarly to the MEC queue---tasks are enqueued upon successful offloading and dequeued upon completion. However, two factors make this state hidden from individual agents:
+\textbf{Cloud State ($c_c,t_c$):}
+The cloud state captures the aggregated task queue dynamics in the core network, which are not directly observable by individual UAV agents. Unlike MEC server states, the cloud queue evolves asynchronously due to background traffic and successful offloading actions from multiple UAVs, rendering its dynamics exogenous from the perspective of any single agent.
 
-\begin{enumerate}
-    \item \textbf{Observability:} Cloud infrastructure state is not directly accessible to individual UAV agents due to communication constraints and the aggregated nature of cloud resources serving multiple edge nodes.
+To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is represented as a finite-state Markov process, where $c_c$ and $t_c$ denote the normalized cloud processing capacity and service latency levels, respectively. At each decision epoch, the agent observes a snapshot of this process through its effect on task completion outcomes.
+
+% The cloud-state transition is given by
+% \begin{equation}
+% P(c_c',t_c' \mid c_c,t_c)
+% = \Pi_{\text{cloud}}\!\left[(c_c,t_c)\rightarrow(c_c',t_c')\right],
+% \end{equation}
+% where $\Pi_{\text{cloud}}$ is a transition matrix capturing background workload fluctuations and
+% multi-UAV coupling effects.
+
+
+
+% \textbf{Cloud Queue State ($\mathbf{C}_c, \mathbf{T}_c$):} The cloud queue evolves similarly to the MEC queue---tasks are enqueued upon successful offloading and dequeued upon completion. However, two factors make this state hidden from individual agents:
+
+% \begin{enumerate}
+%     \item \textbf{Observability:} Cloud infrastructure state is not directly accessible to individual UAV agents due to communication constraints and the aggregated nature of cloud resources serving multiple edge nodes.
     
-    \item \textbf{Multi-Agent Asynchrony:} In the distributed A3C framework, multiple UAV agents compete for shared cloud capacity. When agent $i$ operates at its local time epoch $t_i$, other agents $j \neq i$ may simultaneously execute offloading actions at their respective epochs $t_j$. Consequently, the cloud state transition cannot be expressed as:
-    \begin{equation}
-    \Pr[\mathbf{C}_c', \mathbf{T}_c' | \mathbf{C}_c, \mathbf{T}_c, a_i] \quad \text{(not well-defined)}
-    \end{equation}
-    since it additionally depends on concurrent actions from all agents:
-    \begin{equation}
-    \mathbf{C}_c'(\tau) = f(\mathbf{C}_c(\tau), a_1(\tau), a_2(\tau), \ldots, a_W(\tau))
-    \end{equation}
-    where $\tau$ denotes global wall-clock time and $W$ is the number of parallel workers.
-\end{enumerate}
+%     \item \textbf{Multi-Agent Asynchrony:} In the distributed A3C framework, multiple UAV agents compete for shared cloud capacity. When agent $i$ operates at its local time epoch $t_i$, other agents $j \neq i$ may simultaneously execute offloading actions at their respective epochs $t_j$. Consequently, the cloud state transition cannot be expressed as:
+%     \begin{equation}
+%     \Pr[\mathbf{C}_c', \mathbf{T}_c' | \mathbf{C}_c, \mathbf{T}_c, a_i] \quad \text{(not well-defined)}
+%     \end{equation}
+%     since it additionally depends on concurrent actions from all agents:
+%     \begin{equation}
+%     \mathbf{C}_c'(\tau) = f(\mathbf{C}_c(\tau), a_1(\tau), a_2(\tau), \ldots, a_W(\tau))
+%     \end{equation}
+%     where $\tau$ denotes global wall-clock time and $W$ is the number of parallel workers.
+% \end{enumerate}
 
-From the perspective of agent $i$, cloud availability appears stochastic despite being deterministic at the global level. Each agent queries cloud capacity atomically during action execution via the shared \texttt{NetworkState} and observes only the binary outcome $i_o \in \{0, 1\}$, enabling implicit inference of cloud congestion through recurrent processing of success/failure patterns.
-
-
-The complete state transition function combines the observable and hidden components:
-\begin{equation}
-P(s' | s, a) = P(o' | o, z, a) \cdot P(z' | z).
-\end{equation}
+% From the perspective of agent $i$, cloud availability appears stochastic despite being deterministic at the global level. Each agent queries cloud capacity atomically during action execution via the shared \texttt{NetworkState} and observes only the binary outcome $i_o \in \{0, 1\}$, enabling implicit inference of cloud congestion through recurrent processing of success/failure patterns.
 
 
-% The discrete action formulation enables straightforward policy optimization through categorical probability distributions, allowing the neural network to output action probabilities $\pi(a_t|s_t)$ for effective exploration and exploitation during training.
+% The complete state transition function combines the observable and hidden components:
+% \begin{equation}
+% P(s' | s, a) = P(o' | o, z, a) \cdot P(z' | z).
+% \end{equation}
+
+
+% The discrete action formulation enables straightforward policy optimization through categorical probability distributions, allowing the neural network to output action probabilities $\pi(a|s)$ for effective exploration and exploitation during training.
 
 % \subsection{State Transition Function}
 
@@ -454,7 +485,7 @@ P(s' | s, a) = P(o' | o, z, a) \cdot P(z' | z).
 
 % % The transition probability can be expressed as:
 % % \begin{equation}
-% % \mathcal{P}(s_{t+1}|s_t, a_t) = P(s_{t+1} = (c', q', e', v')|s_t = (c, q, e, v), a_t)
+% % \mathcal{P}(s'|s, a) = P(s' = (c', q', e', v')|s = (c, q, e, v), a)
 % % \end{equation}
 
 % \subsection{State Transition Function}
@@ -511,62 +542,66 @@ P(s' | s, a) = P(o' | o, z, a) \cdot P(z' | z).
 %     \end{split}
 % \end{equation}
 
+% The state transition dynamics are influenced by several key factors:
 
+% \textbf{Computational Resource Evolution:} The computational state transitions depend on task processing outcomes and resource consumption:
+% \begin{equation}
+% c'_{avail} = \begin{cases}
+% \max(0, c_{avail} - \Delta c_{local}) & \text{if } a = 0 \\
+% c_{avail} & \text{if } a = 1 \\
+% c_{avail} & \text{if } a = 2
+% \end{cases}
+% \end{equation}
 
-The state transition dynamics are influenced by several key factors:
+% where $\Delta c_{local}$ represents the normalized computational resources consumed for local processing.
 
-\textbf{Computational Resource Evolution:} The computational state transitions depend on task processing outcomes and resource consumption:
-\begin{equation}
-c'_{avail} = \begin{cases}
-\max(0, c_{avail} - \Delta c_{local}) & \text{if } a_t = a_{LOC} \\
-c_{avail} & \text{if } a_t = a_{OFF} \\
-c_{avail} & \text{if } a_t = a_{DIS}
-\end{cases}
-\end{equation}
+% \textbf{Queue State Dynamics:} The queue state evolves based on task arrivals, processing actions, and completion events:
+% \begin{equation}
+% q'_{units} = f_{queue}(q_{units}, a, \text{new\_tasks}, \text{completed\_tasks})
+% \end{equation}
 
-where $\Delta c_{local}$ represents the normalized computational resources consumed for local processing.
+% Queue updates incorporate the stochastic nature of task arrivals and the deterministic effects of processing actions.
 
-\textbf{Queue State Dynamics:} The queue state evolves based on task arrivals, processing actions, and completion events:
-\begin{equation}
-q'_{units} = f_{queue}(q_{units}, a_t, \text{new\_tasks}, \text{completed\_tasks})
-\end{equation}
+% \textbf{Environment State Changes:} MEC server states evolve based on system load and external factors:
+% \begin{equation}
+% e'_{mec\_units} \sim P_{MEC}(e_{mec\_units}|e_{mec\_units}, \text{system\_load})
+% \end{equation}
 
-Queue updates incorporate the stochastic nature of task arrivals and the deterministic effects of processing actions.
+% The MEC state transitions follow a semi-Markov process reflecting the dynamic nature of edge computing infrastructure.
 
-\textbf{Environment State Changes:} MEC server states evolve based on system load and external factors:
-\begin{equation}
-e'_{mec\_units} \sim P_{MEC}(e_{mec\_units}|e_{mec\_units}, \text{system\_load})
-\end{equation}
+% \textbf{Vehicle Mobility:} UAV contextual states evolve according to mobility patterns and mission requirements:
+% \begin{equation}
+% v'_{velocity} = v_{velocity} + \epsilon_{velocity}
+% \end{equation}
 
-The MEC state transitions follow a semi-Markov process reflecting the dynamic nature of edge computing infrastructure.
+% where $\epsilon_{velocity}$ represents bounded random variations in UAV velocity based on environmental conditions and flight dynamics.
 
-\textbf{Vehicle Mobility:} UAV contextual states evolve according to mobility patterns and mission requirements:
-\begin{equation}
-v'_{velocity} = v_{velocity} + \epsilon_{velocity}
-\end{equation}
-
-where $\epsilon_{velocity}$ represents bounded random variations in UAV velocity based on environmental conditions and flight dynamics.
-
-The complete transition function captures the stochastic nature of the UAV environment while maintaining computational tractability for reinforcement learning optimization.
+% The complete transition function captures the stochastic nature of the UAV environment while maintaining computational tractability for reinforcement learning optimization.
 
 \subsection{Reward Function}
 
-The reward function $\mathcal{R}: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}$ provides immediate feedback to guide the UAV agent's learning process by quantifying the desirability of taking action $a_t$ in state $s_t$. The ATLAS framework designs a multi-objective reward function that balances energy efficiency, processing latency, and task completion success.
+The reward function $\mathcal{R}: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}$ provides immediate feedback to guide the UAV agent's learning process by quantifying the desirability of taking action $a$ in state $s$. The ATLAS framework designs a multi-objective reward function that balances energy efficiency, processing latency, and task completion success.
 
 The reward function is formulated as a weighted combination of multiple cost and benefit components:
 
 \begin{equation}
-\mathcal{R}(s_t, a_t) = -\alpha \cdot C_{energy}(s_t, a_t) - \beta \cdot C_{latency}(s_t, a_t) - \gamma \cdot C_{failure}(s_t, a_t) + \delta \cdot B_{completion}(s_t, a_t)
+\begin{aligned}
+&\mathcal{R}(s, a) \\
+& = -\alpha \cdot C_{energy}(s, a) \\
+& - \beta \cdot C_{latency}(s, a) \\
+& - \gamma \cdot C_{failure}(s, a) \\
+& + \delta \cdot B_{completion}(s, a)
+\end{aligned}
 \end{equation}
 
 where $\alpha$, $\beta$, $\gamma$, and $\delta$ are positive weighting coefficients that control the relative importance of each objective component.
 
 \textbf{Energy Cost ($C_{energy}$):} This component penalizes energy consumption for different actions:
 \begin{equation}
-C_{energy}(s_t, a_t) = \begin{cases}
-E_{local} \cdot q_{units} & \text{if } a_t = a_{LOC} \\
-E_{transmission} \cdot q_{units} & \text{if } a_t = a_{OFF} \\
-0 & \text{if } a_t = a_{DIS}
+C_{energy}(s, a) = \begin{cases}
+E_{local} \cdot q_{units} & \text{if } a = 0 \\
+E_{transmission} \cdot q_{units} & \text{if } a = 1 \\
+0 & \text{if } a = 2
 \end{cases}
 \end{equation}
 
@@ -574,10 +609,10 @@ where $E_{local}$ and $E_{transmission}$ represent normalized energy costs for l
 
 \textbf{Latency Cost ($C_{latency}$):} This component accounts for processing and communication delays:
 \begin{equation}
-C_{latency}(s_t, a_t) = \begin{cases}
-T_{local}(q_{units}, c_{avail}) & \text{if } a_t = a_{LOC} \\
-T_{offload}(q_{units}, e_{mec\_times}) + T_{transmission} & \text{if } a_t = a_{OFF} \\
-0 & \text{if } a_t = a_{DIS}
+C_{latency}(s, a) = \begin{cases}
+T_{local}(q_{units}, c_{avail}) & \text{if } a = 0 \\
+T_{offload}(q_{units}, e_{mec\_times}) + T_{transmission} & \text{if } a = 1 \\
+0 & \text{if } a = 2
 \end{cases}
 \end{equation}
 
@@ -585,10 +620,10 @@ where $T_{local}$ and $T_{offload}$ are functions computing processing times bas
 
 \textbf{Failure Penalty ($C_{failure}$):} This component penalizes unsuccessful task processing:
 \begin{equation}
-C_{failure}(s_t, a_t) = \begin{cases}
-P_{fail\_local} \cdot \rho_{failure} & \text{if } a_t = a_{LOC} \\
-P_{fail\_offload} \cdot \rho_{failure} & \text{if } a_t = a_{OFF} \\
-\rho_{discard} & \text{if } a_t = a_{DIS}
+C_{failure}(s, a) = \begin{cases}
+P_{fail\_local} \cdot \rho_{failure} & \text{if } a = 0 \\
+P_{fail\_offload} \cdot \rho_{failure} & \text{if } a = 1 \\
+\rho_{discard} & \text{if } a = 2
 \end{cases}
 \end{equation}
 
@@ -596,10 +631,10 @@ where $P_{fail\_local}$ and $P_{fail\_offload}$ are failure probabilities, and $
 
 \textbf{Completion Benefit ($B_{completion}$):} This component provides positive rewards for successful task completion:
 \begin{equation}
-B_{completion}(s_t, a_t) = \begin{cases}
-(1 - P_{fail\_local}) \cdot \eta_{success} & \text{if } a_t = a_{LOC} \\
-(1 - P_{fail\_offload}) \cdot \eta_{success} & \text{if } a_t = a_{OFF} \\
-0 & \text{if } a_t = a_{DIS}
+B_{completion}(s, a) = \begin{cases}
+(1 - P_{fail\_local}) \cdot \eta_{success} & \text{if } a = 0 \\
+(1 - P_{fail\_offload}) \cdot \eta_{success} & \text{if } a = 1 \\
+0 & \text{if } a = 2
 \end{cases}
 \end{equation}
 
@@ -673,18 +708,18 @@ Our evaluation framework includes the following key metrics:
             \While{episode not terminated}
                 \State \textbf{// Collect T-step rollout}
                 \For{$t = 0$ to $T-1$}
-                    \State Compute $\pi(\cdot | s_t, h_t; \theta_w)$ and $V(s_t, h_t; \theta_w)$
-                    \State Sample $a_t \sim \pi(\cdot | s_t, h_t; \theta_w)$
-                    \State Execute $a_t$, observe $r_t$ and $s_{t+1}$
-                    \State Update $h_{t+1}$ via GRU; if done, $h_{t+1} \gets \mathbf{0}$
+                    \State Compute $\pi(\cdot | s, h_t; \theta_w)$ and $V(s, h_t; \theta_w)$
+                    \State Sample $a \sim \pi(\cdot | s, h_t; \theta_w)$
+                    \State Execute $a$, observe $r_t$ and $s'$
+                    \State Update $h'$ via GRU; if done, $h' \gets \mathbf{0}$
                 \EndFor
                 \State \textbf{// Compute returns and advantages}
-                \State Bootstrap $R \gets V(s_T, h_T; \theta_w)$ if not done, else $R \gets 0$
+                \State Bootstrap $R \gets V(s, h_T; \theta_w)$ if not done, else $R \gets 0$
                 \For{$t = T-1$ down to $0$}
-                    \State $R \gets r_t + \gamma R$; $A_t \gets R - V(s_t, h_t; \theta_w)$
+                    \State $R \gets r_t + \gamma R$; $A_t \gets R - V(s, h_t; \theta_w)$
                 \EndFor
                 \State \textbf{// Compute loss}
-                \State $\mathcal{L} \gets -\sum_t \log \pi(a_t | s_t, h_t; \theta_w) A_t + \beta_v \sum_t (R_t - V_t)^2 - \beta_h \mathcal{H}(\pi)$
+                \State $\mathcal{L} \gets -\sum_t \log \pi(a | s, h_t; \theta_w) A_t + \beta_v \sum_t (R_t - V_t)^2 - \beta_h \mathcal{H}(\pi)$
                 \State \textbf{// Asynchronous update}
                 \State Compute gradients $\nabla_{\theta_w} \mathcal{L}$ and clip
                 \State Copy gradients to global: $\nabla_{\theta} \gets \nabla_{\theta_w}$
