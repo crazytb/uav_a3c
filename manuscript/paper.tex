@@ -392,7 +392,7 @@ v' = v, \quad c' = c.
 The hidden state space $\mathcal{Z} = S_{cloud} \times S_{channel}$ evolves independently of the agent's actions.
 Among the hidden components, the channel state $Q \in S_{channel}$ evolves as an autonomous Markov process:
 \begin{equation}
-P(z' | z) = P(q' | q).
+P(z' | z) = P(q' | q)\cdot P(c_c', t_c' | c_c, t_c).
 \end{equation}
 
 \textbf{Channel State ($q$):} The binary channel quality evolves as a two-state finite-state Markov channel (FSMC) based on the Gilbert--Elliott model~\cite{gilbert1960capacity,elliott1963estimates}, with transition rates governed by the Doppler effect~\cite{zhang1999finite}.
@@ -410,6 +410,25 @@ P(q'{=}0 \mid q{=}1) &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}
 \end{equation}
 where $\gamma_{\text{thr}}$ and $\bar{\gamma}$ denote the SNR threshold and average SNR, respectively, and the complementary probabilities are $P(q'{=}0\mid q{=}0) = 1 - P(q'{=}1\mid q{=}0)$ and $P(q'{=}1\mid q{=}1) = 1 - P(q'{=}0\mid q{=}1)$.
 Both transition rates increase with velocity through $\bar{f}_d$, reflecting increased channel variability at higher UAV speeds.
+
+\textbf{Cloud Queue State ($\mathbf{C}_c, \mathbf{T}_c$):} The cloud queue evolves similarly to the MEC queue---tasks are enqueued upon successful offloading and dequeued upon completion. However, two factors make this state hidden from individual agents:
+
+\begin{enumerate}
+    \item \textbf{Observability:} Cloud infrastructure state is not directly accessible to individual UAV agents due to communication constraints and the aggregated nature of cloud resources serving multiple edge nodes.
+    
+    \item \textbf{Multi-Agent Asynchrony:} In the distributed A3C framework, multiple UAV agents compete for shared cloud capacity. When agent $i$ operates at its local time epoch $t_i$, other agents $j \neq i$ may simultaneously execute offloading actions at their respective epochs $t_j$. Consequently, the cloud state transition cannot be expressed as:
+    \begin{equation}
+    \Pr[\mathbf{C}_c', \mathbf{T}_c' | \mathbf{C}_c, \mathbf{T}_c, a_i] \quad \text{(not well-defined)}
+    \end{equation}
+    since it additionally depends on concurrent actions from all agents:
+    \begin{equation}
+    \mathbf{C}_c'(\tau) = f(\mathbf{C}_c(\tau), a_1(\tau), a_2(\tau), \ldots, a_W(\tau))
+    \end{equation}
+    where $\tau$ denotes global wall-clock time and $W$ is the number of parallel workers.
+\end{enumerate}
+
+From the perspective of agent $i$, cloud availability appears stochastic despite being deterministic at the global level. Each agent queries cloud capacity atomically during action execution via the shared \texttt{NetworkState} and observes only the binary outcome $i_o \in \{0, 1\}$, enabling implicit inference of cloud congestion through recurrent processing of success/failure patterns.
+
 
 The complete state transition function combines the observable and hidden components:
 \begin{equation}
