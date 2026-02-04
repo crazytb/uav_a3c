@@ -309,14 +309,14 @@ The state transitions of $P(o'|o, z, a)$ are governed by the agent's action sele
 \begin{equation}
 \begin{split}
 &P(o' | o, z, a) \\
-&= P(c_l' | c_l, c_q, t_q, \mathbf{c}_m, \mathbf{t}_m, a) \\
+&= P(c_l' | c_l, c_q, t_q, c_m, t_m, a) \\
 &\times P(e_r' | e_r) \\
 &\times P(c_q') \\
 &\times P(t_q') \\
-&\times P(i_l' | i_l, c_l, c_q, \mathbf{c}_m, a) \\
+&\times P(i_l' | i_l, c_l, c_q, c_m, a) \\
 &\times P(i_o' | i_o, c_q, z, a) \\
-&\times P(\mathbf{c}_m' | c_l, c_q, t_q, \mathbf{c}_m, \mathbf{t}_m, a) \\
-&\times P(\mathbf{t}_m' | c_l, c_q, t_q, \mathbf{c}_m, \mathbf{t}_m, a),
+&\times P(c_m' | c_l, c_q, t_q, c_m, t_m, a) \\
+&\times P(t_m' | c_l, c_q, t_q, c_m, t_m, a),
 \end{split}
 \end{equation}
 where $c_l \in C_l$, $e_r \in E_r$, $c_q \in C_q$, $t_q \in T_q$, $i_l \in I_l$, $i_o \in I_o$, $c_m \in C_m$, and $t_m \in T_m$ denote the realizations of the corresponding state variables, and their primed counterparts represent the values at the next decision epoch.
@@ -341,12 +341,16 @@ e_r' = e_r - 1.
 
 \textbf{Queue Task Arrivals ($c_q, t_q$):} A new computational task arrives at each decision epoch with computation units and processing time drawn independently from discrete uniform distributions:
 \begin{equation}
-c_q' \sim \text{Uniform}(1, 200), \quad t_q' \sim \text{Uniform}(1, 50).
+\begin{split}
+c_q' \sim \text{Uniform}(1, \texttt{MAX\_COMP\_UNITS}), \\
+t_q' \sim \text{Uniform}(1, \texttt{MAX\_PROC\_TIMES}).
+\end{split}
 \end{equation}
+where $\texttt{MAX\_COMP\_UNITS}$ and $\texttt{MAX\_PROC\_TIMES}$ denote the upper bounds for the task's computation units and processing time, and are predefined as 200 and 50, respectively.
 These arrivals are mutually independent and independent of all other state variables, modeling the unpredictable workload in UAV task offloading scenarios.
 
 \textbf{Success Indicators ($i_l, i_o$):} Each indicator is updated only when the corresponding action is taken and retains its previous value otherwise.
-The offload feasibility additionally depends on hidden state components $Q \in \mathcal{Z}$ and $\mathbf{c}_c \in \mathcal{Z}$.
+The offload feasibility additionally depends on hidden state components $Q \in \mathcal{Z}$ and ${C}_c \in \mathcal{Z}$.
 Define the offload feasibility indicator:
 \begin{equation}
 \phi_o \triangleq \mathbf{1}\!\left[\exists\, k: c_{c,k} = 0\right]\cdot\mathbf{1}[c_q > 0]\cdot\mathbf{1}[Q = 1]\cdot\mathbf{1}[C_c^{\mathrm{avail}} \geq c_q],
@@ -388,23 +392,23 @@ v' = v, \quad c' = c.
 The hidden state space $\mathcal{Z} = S_{cloud} \times S_{channel}$ evolves independently of the agent's actions.
 Among the hidden components, the channel state $Q \in S_{channel}$ evolves as an autonomous Markov process:
 \begin{equation}
-P[z' | z] = P[Q' | Q].
+P(z' | z) = P(q' | q).
 \end{equation}
 
-\textbf{Channel State ($Q$):} The binary channel quality evolves as a two-state finite-state Markov channel (FSMC) based on the Gilbert--Elliott model~\cite{gilbert1960capacity,elliott1963estimates}, with transition rates governed by the Doppler effect~\cite{zhang1999finite}.
+\textbf{Channel State ($q$):} The binary channel quality evolves as a two-state finite-state Markov channel (FSMC) based on the Gilbert--Elliott model~\cite{gilbert1960capacity,elliott1963estimates}, with transition rates governed by the Doppler effect~\cite{zhang1999finite}.
 The Doppler frequency is given by
 \begin{equation}
 f_d = \frac{v \cdot f_0}{c_{\text{light}}},
 \end{equation}
-where $f_0 = 5.9\,\text{GHz}$ is the carrier frequency (IEEE 802.11bd) and $c_{\text{light}}$ is the speed of light.
+where $f_0 = 5.9\,\text{GHz}$ is the carrier frequency and $c_{\text{light}}$ is the speed of light.
 The transition probabilities are parameterized by the normalized Doppler spread $\bar{f}_d = f_d \cdot T_p$, where $T_p$ denotes the decision epoch duration:
 \begin{equation}
 \begin{aligned}
-P[Q'{=}1 \mid Q{=}0] &= \frac{\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}}{\exp\!\bigl(\gamma_{\text{thr}}/\bar{\gamma}\bigr) - 1}, \\[4pt]
-P[Q'{=}0 \mid Q{=}1] &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}},
+P(q'{=}1 \mid q{=}0) &= \frac{\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}}{\exp\!\bigl(\gamma_{\text{thr}}/\bar{\gamma}\bigr) - 1}, \\[4pt]
+P(q'{=}0 \mid q{=}1) &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}},
 \end{aligned}
 \end{equation}
-where $\gamma_{\text{thr}}$ and $\bar{\gamma}$ denote the SNR threshold and average SNR, respectively, and the complementary probabilities are $P[Q'{=}0\mid Q{=}0] = 1 - P[Q'{=}1\mid Q{=}0]$ and $P[Q'{=}1\mid Q{=}1] = 1 - P[Q'{=}0\mid Q{=}1]$.
+where $\gamma_{\text{thr}}$ and $\bar{\gamma}$ denote the SNR threshold and average SNR, respectively, and the complementary probabilities are $P(q'{=}0\mid q{=}0) = 1 - P(q'{=}1\mid q{=}0)$ and $P(q'{=}1\mid q{=}1) = 1 - P(q'{=}0\mid q{=}1)$.
 Both transition rates increase with velocity through $\bar{f}_d$, reflecting increased channel variability at higher UAV speeds.
 
 The complete state transition function combines the observable and hidden components:
