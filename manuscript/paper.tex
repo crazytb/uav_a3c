@@ -176,7 +176,7 @@ Addressing these three research gaps, this paper presents a carefully designed A
 
 We formulate the multi-UAV task offloading optimization problem as a Partially Observable Markov Decision Process (POMDP), where each UAV agent operates as an intelligent decision maker in a dynamic edge computing environment. The POMDP framework enables UAV agents to make sequential decisions for incoming computational tasks while adapting to changing environmental conditions and resource availability. Furthermore, the POMDP formulation captures the inherent uncertainty in UAV operations, such as fluctuating network conditions and the computation capability of the cloud servers for task offloading.
 
-Formally, the ATLAS framework models the task offloading problem as a tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ is the action space, $\mathcal{P}$ is the state transition function, $\mathcal{R}$ is the reward function, and $\gamma \in [0,1]$ is the discount factor. Each UAV agent can be in a state $s \in \mathcal{S}$, then selects an action $a \in \mathcal{A}$ according to its policy $\pi(a|s)$, and receives a reward $r_t = \mathcal{R}(s, a)$ while transitioning to the next state $s' \sim \mathcal{P}(s'|s, a)$.
+Formally, the ATLAS framework models the task offloading problem as a tuple $\langle \mathcal{S}, \mathcal{A}, \mathcal{P}, \mathcal{R}, \gamma \rangle$, where $\mathcal{S}$ is the state space, $\mathcal{A}$ is the action space, $\mathcal{P}$ is the state transition function, $\mathcal{R}$ is the reward function, and $\gamma \in [0,1]$ is the discount factor. Each UAV agent can be in a state $s \in \mathcal{S}$, then selects an action $a \in \mathcal{A}$ according to its policy $\pi(a\mid s)$, and receives a reward $r_t = \mathcal{R}(s, a)$ while transitioning to the next state $s' \sim \mathcal{P}(s'\mid s, a)$.
 
 The primary objective is to learn an optimal policy $\pi^*$ that maximizes the expected cumulative discounted reward:
 \begin{equation}
@@ -289,11 +289,11 @@ where $o \in \mathcal{O}$ denotes the observation state available to UAV agents,
 % e.g., $c_l \in \mathbf{C}_l$, and $c_l'$ denotes its value in the next state.
 
 Although components of $z$, i.e., cloud information and channel quality, evolve on time scales that are not synchronized with the UAV decision process, the state transition function is defined with respect to decision epochs rather than physical time.
-Specifically, the value of each exogenous component is sampled at each decision epoch and incorporated into the environment state, ensuring that the transition $P(s'| s, a)$ is well-defined and Markovian with respect to the decision-aligned state.
+Specifically, the value of each exogenous component is sampled at each decision epoch and incorporated into the environment state, ensuring that the transition $P(s'\mid  s, a)$ is well-defined and Markovian with respect to the decision-aligned state.
 
 The complete transition function can be decomposed as
 \begin{equation}
-    P(s'|s, a) = P(o'|o, z, a) \cdot P(z' | z),
+    P(s'\mid s, a) = P(o'\mid o, z, a) \cdot P(z' \mid  z),
 \end{equation}
 where the observable and exogenous components evolve according to distinct mechanisms. This decomposition reflects the fact that UAV actions directly influence task execution, queue dynamics, and local resource utilization, while the evolution of cloud and channel states is governed by external processes independent of individual UAV decisions.
 
@@ -304,19 +304,19 @@ where the observable and exogenous components evolve according to distinct mecha
 
 \subsubsection{Observable State Transitions}
 
-The state transitions of $P(o'|o, z, a)$ are governed by the agent's action selection and are fully observable by the UAV. These include resource consumption, queue management, and action outcome indicators. In contrast to hidden state transitions, observable components evolve deterministically given the action and current resource availability. $P(o'|o, z, a)$ can be represented as follows:
+The state transitions of $P(o'\mid o, z, a)$ are governed by the agent's action selection and are fully observable by the UAV. These include resource consumption, queue management, and action outcome indicators. In contrast to hidden state transitions, observable components evolve deterministically given the action and current resource availability. $P(o'\mid o, z, a)$ can be represented as follows:
 
 \begin{equation}
 \begin{split}
-&P(o' | o, z, a) \\
-&= P(c_l' | c_l, c_q, t_q, c_m, t_m, a) \\
-&\times P(e_r' | e_r) \\
-&\times P(c_q') \\
-&\times P(t_q') \\
-&\times P(i_l' | i_l, c_l, c_q, c_m, a) \\
-&\times P(i_o' | i_o, c_q, z, a) \\
-&\times P(c_m' | c_l, c_q, t_q, c_m, t_m, a) \\
-&\times P(t_m' | c_l, c_q, t_q, c_m, t_m, a),
+&P(o' \mid  o, z, a) \\
+&= P(c_l' \mid  c_l, c_q, t_q, c_m, t_m, a) \\
+&\times P(e_r' \mid  e_r) \\
+&\times P(c_q' \mid \cdot) \\
+&\times P(t_q' \mid \cdot) \\
+&\times P(i_l' \mid  i_l, c_l, c_q, c_m, a) \\
+&\times P(i_o' \mid  i_o, c_q, q, c_c, a) \\
+&\times P(c_m' \mid  c_l, c_q, t_q, c_m, t_m, a) \\
+&\times P(t_m' \mid  c_l, c_q, t_q, c_m, t_m, a),
 \end{split}
 \end{equation}
 where $c_l \in C_l$, $e_r \in E_r$, $c_q \in C_q$, $t_q \in T_q$, $i_l \in I_l$, $i_o \in I_o$, $c_m \in C_m$, and $t_m \in T_m$ denote the realizations of the corresponding state variables, and their primed counterparts represent the values at the next decision epoch.
@@ -327,65 +327,134 @@ Define the local processing feasibility indicator:
 \begin{equation}
 \phi_l \triangleq \mathbf{1}[c_l \geq c_q]\cdot\mathbf{1}\!\left[\exists\, k \in \{1,\dots,K\}: c_{m,k} = 0\right]\cdot\mathbf{1}[c_q > 0],
 \end{equation}
-where $\mathbf{1}[\cdot]$ denotes the indicator function, yielding 1 when the enclosed condition holds and 0 otherwise. This indicator means that $\phi_l = 1$ indicates that local processing is feasible: sufficient local resources are available, the MEC queue has capacity, and a pending task exists. Then the transition is given by
+where $\mathbf{1}[\cdot]$ denotes the indicator function, yielding 1 when the enclosed condition holds and 0 otherwise. This indicator means that $\phi_l = 1$ indicates that local processing is feasible: sufficient local resources are available, the MEC queue has capacity, and a pending task exists.
+
+Let $\kappa_m = \min\{k: c_{m,k} = 0\}$ denote the first available MEC queue slot.
+The intermediate MEC state after task enqueue is
 \begin{equation}
-c_l' = c_l - c_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l + \sum_{k=1}^{K}\tilde{c}_{m,k}\cdot\mathbf{1}[\tilde{t}_{m,k}=1],
+\label{eq:tilde}
+\begin{aligned}
+\tilde{c}_{m,k} &= c_{m,k} + c_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l\cdot\mathbf{1}[k{=}\kappa_m], \\
+\tilde{t}_{m,k} &= t_{m,k} + t_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l\cdot\mathbf{1}[k{=}\kappa_m].
+\end{aligned}
 \end{equation}
-where $\tilde{c}_{m,k}$ and $\tilde{t}_{m,k}$ denote the intermediate MEC state after task enqueue but prior to completion processing, as formally defined below.
+Then the transition of $c_l$ is given by
+% \begin{equation}
+% c_l' = c_l - c_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l + \sum_{k=1}^{K}\tilde{c}_{m,k}\cdot\mathbf{1}[\tilde{t}_{m,k}=1],
+% \end{equation}
+\begin{equation}
+\begin{aligned}
+& P(c_l' \mid c_l, c_q, t_q, c_m, t_m, a) \\
+& =
+\mathbf{1}\!\left[
+c_l' =
+c_l
+- c_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l
++ \sum_{k=1}^{K}\tilde{c}_{m,k}\cdot\mathbf{1}[\tilde{t}_{m,k}=1]
+\right].
+\end{aligned}
+\end{equation}
+
 The first negative term captures resource consumption when a task is successfully scheduled for local processing, while the summation captures resource recovery when MEC-scheduled tasks complete their processing.
 
 \textbf{Remaining Epochs ($e_r$):} The remaining epoch counter decrements deterministically at each decision epoch, independent of the agent's action:
+% \begin{equation}
+% P(e_r' \mid e_r) =
+% \begin{cases}
+% 1, & e_r' = e_r - 1, \\
+% 0, & \text{otherwise}.
+% \end{cases}
+% \end{equation}
 \begin{equation}
-e_r' = e_r - 1.
+P(e_r' \mid e_r) = \mathbf{1}[e_r' = e_r - 1]
 \end{equation}
+
 
 \textbf{Queue Task Arrivals ($c_q, t_q$):} A new computational task arrives at each decision epoch with computation units and processing time drawn independently from discrete uniform distributions:
+% \begin{equation}
+% \begin{split}
+% c_q' \sim \text{Uniform}(1, \texttt{MAX\_COMP\_UNITS}), \\
+% t_q' \sim \text{Uniform}(1, \texttt{MAX\_PROC\_TIMES}).
+% \end{split}
+% \end{equation}
 \begin{equation}
 \begin{split}
-c_q' \sim \text{Uniform}(1, \texttt{MAX\_COMP\_UNITS}), \\
-t_q' \sim \text{Uniform}(1, \texttt{MAX\_PROC\_TIMES}).
+P(c_q' \mid \cdot) &= \frac{1}{C_{\max}}, 
+\quad \forall c_q' \in \{1, \dots, C_{\max}\}, \\
+P(t_q' \mid \cdot) &= \frac{1}{T_{\max}}, 
+\quad \forall t_q' \in \{1, \dots, T_{\max}\}.
 \end{split}
 \end{equation}
-where $\texttt{MAX\_COMP\_UNITS}$ and $\texttt{MAX\_PROC\_TIMES}$ denote the upper bounds for the task's computation units and processing time, and are predefined as 200 and 50, respectively.
-These arrivals are mutually independent and independent of all other state variables, modeling the unpredictable workload in UAV task offloading scenarios.
+where $C_{\max}$ and $T_{\max}$ denote the maximum number of computation units 
+and the maximum processing time, ans are predefined as 200 and 50, respectively. These arrivals are mutually independent and independent of all other state variables, modeling the unpredictable workload in UAV task offloading scenarios.
 
 \textbf{Success Indicators ($i_l, i_o$):} Each indicator is updated only when the corresponding action is taken and retains its previous value otherwise.
-The offload feasibility additionally depends on hidden state components $Q \in \mathcal{Z}$ and ${C}_c \in \mathcal{Z}$.
+The offload feasibility additionally depends on hidden state components $q \in \mathcal{Z}$ and ${c}_c \in \mathcal{Z}$.
 Define the offload feasibility indicator:
 \begin{equation}
-\phi_o \triangleq \mathbf{1}\!\left[\exists\, k: c_{c,k} = 0\right]\cdot\mathbf{1}[c_q > 0]\cdot\mathbf{1}[Q = 1]\cdot\mathbf{1}[C_c^{\mathrm{avail}} \geq c_q],
+\phi_o \triangleq \mathbf{1}\!\left[\exists\, k: c_{c,k} = 0\right]\cdot\mathbf{1}[c_q > 0]\cdot\mathbf{1}[Q = 1]\cdot\mathbf{1}[c_c^{\mathrm{avail}} \geq c_q],
 \end{equation}
-where $C_c^{\mathrm{avail}}$ denotes the remaining shared cloud computation capacity across all UAV agents.
-The indicator transitions are
+where $c_c^{\mathrm{avail}}$ denotes the remaining shared cloud computation capacity across all UAV agents.
+Then, the indicator transitions are as follows:
+% \begin{equation}
+% i_l' = \begin{cases}\phi_l & \text{if } a = 0,\\ i_l & \text{otherwise,}\end{cases}
+% \qquad
+% i_o' = \begin{cases}\phi_o & \text{if } a = 1,\\ i_o & \text{otherwise.}\end{cases}
+% \end{equation}
 \begin{equation}
-i_l' = \begin{cases}\phi_l & \text{if } a = 0,\\ i_l & \text{otherwise,}\end{cases}
-\qquad
-i_o' = \begin{cases}\phi_o & \text{if } a = 1,\\ i_o & \text{otherwise.}\end{cases}
+\begin{split}
+P(i_l' \mid  i_l, c_l, c_q, c_m, a)
+&= \mathbf{1}\!\left[
+i_l' = \phi_l\cdot\mathbf{1}[a{=}0]
+      + i_l\cdot\mathbf{1}[a{\neq}0]
+\right], \\
+P(i_o' \mid  i_o, c_q, q, c_c, a)
+&= \mathbf{1}\!\left[
+i_o' = \phi_o\cdot\mathbf{1}[a{=}1]
+      + i_o\cdot\mathbf{1}[a{\neq}1]
+\right].
+\end{split}
 \end{equation}
+
 
 \textbf{MEC Server State (${c}_m, {t}_m$):} The MEC queue undergoes a three-phase update per decision epoch: enqueue, completion removal, and processing-time decrement.
-Let $\kappa = \min\{k: c_{m,k} = 0\}$ denote the first available queue slot.
-The intermediate queue state after task enqueue is
-\begin{equation}
-\begin{aligned}
-\tilde{c}_{m,k} &= c_{m,k} + c_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l\cdot\mathbf{1}[k{=}\kappa], \\
-\tilde{t}_{m,k} &= t_{m,k} + t_q\cdot\mathbf{1}[a{=}0]\cdot\phi_l\cdot\mathbf{1}[k{=}\kappa].
-\end{aligned}
-\end{equation}
-Tasks satisfying $\tilde{t}_{m,k}=1$ are identified as completed; their computation units contribute to local resource recovery as described in the $c_l'$ transition above.
+Using the intermediate queue state $(\tilde{c}_{m,k}, \tilde{t}_{m,k})$ defined in~\eqref{eq:tilde},
+tasks satisfying $\tilde{t}_{m,k}=1$ are identified as completed; their computation units contribute to local resource recovery as described in the $c_l'$ transition.
 The final MEC state after completion removal and one-epoch decrement is
+% \begin{equation}
+% \begin{aligned}
+% c_{m,k}' &= \tilde{c}_{m,k}\;\cdot\;\mathbf{1}[\tilde{t}_{m,k}\neq 1], \\
+% t_{m,k}' &= \max\!\bigl(\tilde{t}_{m,k}-1,\;0\bigr),
+% \end{aligned}
+% \end{equation}
 \begin{equation}
 \begin{aligned}
-c_{m,k}' &= \tilde{c}_{m,k}\;\cdot\;\mathbf{1}[\tilde{t}_{m,k}\neq 1], \\
-t_{m,k}' &= \max\!\bigl(\tilde{t}_{m,k}-1,\;0\bigr),
+& P(c_{m,k}' \mid c_l, c_q, t_q, c_m, t_m, a) \\
+& = \mathbf{1}\!\left[
+c_{m,k}' = \tilde{c}_{m,k}\cdot\mathbf{1}[\tilde{t}_{m,k}\neq 1]
+\right],\\
+& P(t_{m,k}' \mid c_l, c_q, t_q, c_m, t_m, a) \\
+& = \mathbf{1}\!\left[
+t_{m,k}' = \max\!\bigl(\tilde{t}_{m,k}-1,\;0\bigr)
+\right],
 \end{aligned}
 \end{equation}
+% \begin{equation}
+% P(t_{m,k}' \mid s,a)=
+% \begin{cases}
+% 1, & t_{m,k}'=\max(\tilde{t}_{m,k}-1,0),\\
+% 0, & \text{otherwise}.
+% \end{cases}
+% \end{equation}
 for each $k \in \{1,\dots,K\}$, after which active tasks are compacted to the leading positions of the queue vector.
 
-\textbf{Environmental Context ($v, c$):} Velocity and computation capacity are sampled once at episode initialization and remain constant throughout:
+\textbf{Environmental Context ($v, c$):} 
+Each UAV agent may have a distinct velocity and maximum computation capacity, reflecting heterogeneous platform characteristics. These parameters are sampled once at episode initialization and remain constant throughout the episode:
 \begin{equation}
-v' = v, \quad c' = c.
+P(v' \mid v) = \mathbf{1}[v' = v], \quad 
+P(c' \mid c) = \mathbf{1}[c' = c].
 \end{equation}
+
 
 \subsubsection{Hidden State Transitions}
 
@@ -418,10 +487,29 @@ The Doppler frequency is given by
 f_d = \frac{v \cdot f_0}{c_{\text{light}}},
 \end{equation}
 where $f_0 = 5.9\,\text{GHz}$ is the carrier frequency and $c_{\text{light}}$ is the speed of light. The transition probabilities are parameterized by the normalized Doppler spread $\bar{f}_d = f_d \cdot T_p$, where $T_p$ denotes the decision epoch duration:
+% \begin{equation}
+% \begin{aligned}
+% P(q'{=}1 \mid q{=}0) &= \frac{\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}}{\exp\!\bigl(\gamma_{\text{thr}}/\bar{\gamma}\bigr) - 1}, \\[4pt]
+% P(q'{=}0 \mid q{=}1) &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}},
+% \end{aligned}
+% \end{equation}
+\begin{equation}
+P(q' \mid q) =
+\begin{cases}
+p_{01}, & q=0,\; q'=1,\\
+1-p_{01}, & q=0,\; q'=0,\\
+p_{10}, & q=1,\; q'=0,\\
+1-p_{10}, & q=1,\; q'=1,
+\end{cases}
+\end{equation}
+where each transition probabilities are as
 \begin{equation}
 \begin{aligned}
-P(q'{=}1 \mid q{=}0) &= \frac{\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}}{\exp\!\bigl(\gamma_{\text{thr}}/\bar{\gamma}\bigr) - 1}, \\[4pt]
-P(q'{=}0 \mid q{=}1) &= \bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}},
+p_{01} &\triangleq 
+\frac{\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}}}
+{\exp\!\bigl(\gamma_{\text{thr}}/\bar{\gamma}\bigr)-1},\\[4pt]
+p_{10} &\triangleq 
+\bar{f}_d\,\sqrt{2\pi\,\gamma_{\text{thr}}/\bar{\gamma}} .
 \end{aligned}
 \end{equation}
 where $\gamma_{\text{thr}}$ and $\bar{\gamma}$ denote the SNR threshold and average SNR, respectively, and the complementary probabilities are $P(q'{=}0\mid q{=}0) = 1 - P(q'{=}1\mid q{=}0)$ and $P(q'{=}1\mid q{=}1) = 1 - P(q'{=}0\mid q{=}1)$.
@@ -449,7 +537,7 @@ To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is
     
 %     \item \textbf{Multi-Agent Asynchrony:} In the distributed A3C framework, multiple UAV agents compete for shared cloud capacity. When agent $i$ operates at its local time epoch $t_i$, other agents $j \neq i$ may simultaneously execute offloading actions at their respective epochs $t_j$. Consequently, the cloud state transition cannot be expressed as:
 %     \begin{equation}
-%     \Pr[\mathbf{C}_c', \mathbf{T}_c' | \mathbf{C}_c, \mathbf{T}_c, a_i] \quad \text{(not well-defined)}
+%     \Pr[\mathbf{C}_c', \mathbf{T}_c' \mid  \mathbf{C}_c, \mathbf{T}_c, a_i] \quad \text{(not well-defined)}
 %     \end{equation}
 %     since it additionally depends on concurrent actions from all agents:
 %     \begin{equation}
@@ -463,11 +551,11 @@ To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is
 
 % The complete state transition function combines the observable and hidden components:
 % \begin{equation}
-% P(s' | s, a) = P(o' | o, z, a) \cdot P(z' | z).
+% P(s' \mid  s, a) = P(o' \mid  o, z, a) \cdot P(z' \mid  z).
 % \end{equation}
 
 
-% The discrete action formulation enables straightforward policy optimization through categorical probability distributions, allowing the neural network to output action probabilities $\pi(a|s)$ for effective exploration and exploitation during training.
+% The discrete action formulation enables straightforward policy optimization through categorical probability distributions, allowing the neural network to output action probabilities $\pi(a\mid s)$ for effective exploration and exploitation during training.
 
 % \subsection{State Transition Function}
 
@@ -485,7 +573,7 @@ To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is
 
 % % The transition probability can be expressed as:
 % % \begin{equation}
-% % \mathcal{P}(s'|s, a) = P(s' = (c', q', e', v')|s = (c, q, e, v), a)
+% % \mathcal{P}(s'\mid s, a) = P(s' = (c', q', e', v')\mid s = (c, q, e, v), a)
 % % \end{equation}
 
 % \subsection{State Transition Function}
@@ -505,18 +593,18 @@ To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is
 % The state transition function can be decomposed as:
 % \begin{equation}
 % \begin{split}
-% \Pr[s' | s, a] &= \Pr[c_l' | c_l, c_q, a] \\
-% &\times \Pr[e_r' | e_r] \\
-% &\times \Pr[c_q' | c_q] \\
-% &\times \Pr[t_q' | t_q] \\
-% &\times \Pr[i_l' | c_l, c_q, \mathbf{c}_m, a] \\
-% &\times \Pr[i_o' | \mathbf{c}_c, c_q, q, a] \\
-% &\times \prod_{k=1}^{K} \Pr[c_{m,k}' | c_{m,k}, t_{m,k}, a] \\
-% &\times \prod_{k=1}^{K} \Pr[t_{m,k}' | t_{m,k}] \\
+% \Pr[s' \mid  s, a] &= \Pr[c_l' \mid  c_l, c_q, a] \\
+% &\times \Pr[e_r' \mid  e_r] \\
+% &\times \Pr[c_q' \mid  c_q] \\
+% &\times \Pr[t_q' \mid  t_q] \\
+% &\times \Pr[i_l' \mid  c_l, c_q, \mathbf{c}_m, a] \\
+% &\times \Pr[i_o' \mid  \mathbf{c}_c, c_q, q, a] \\
+% &\times \prod_{k=1}^{K} \Pr[c_{m,k}' \mid  c_{m,k}, t_{m,k}, a] \\
+% &\times \prod_{k=1}^{K} \Pr[t_{m,k}' \mid  t_{m,k}] \\
 % &\times \Pr[v'] \times \Pr[c'] \\
-% &\times \Pr[q' | q] \\
-% &\times \prod_{k=1}^{K} \Pr[c_{c,k}' | c_{c,k}, t_{c,k}, a] \\
-% &\times \prod_{k=1}^{K} \Pr[t_{c,k}' | t_{c,k}]
+% &\times \Pr[q' \mid  q] \\
+% &\times \prod_{k=1}^{K} \Pr[c_{c,k}' \mid  c_{c,k}, t_{c,k}, a] \\
+% &\times \prod_{k=1}^{K} \Pr[t_{c,k}' \mid  t_{c,k}]
 % \end{split}
 % \end{equation}
 % where the first nine terms represent observable state transitions and the last three terms capture hidden state dynamics.
@@ -529,14 +617,14 @@ To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is
 
 % \begin{equation}
 %     \begin{split}
-%         \Pr[s' | s, a] &= \Pr[C_l' | C_l, C_q, a] \\
-%         &\times \Pr[E_r' | E_r] \\
-%         &\times \Pr[C_q' | C_q] \\
-%         &\times \Pr[T_q' | T_q] \\
-%         &\times \Pr[I_l' | C_l, C_q, C_m, a] \\
-%         &\times \Pr[I_o' | C_c, C_q, Q, a] \\
-%         &\times \prod_{k=1}^{K} \Pr[C_{m,k}' | C_{m,k}, T_{m,k}, a] \\
-%         &\times \prod_{k=1}^{K} \Pr[T_{m,k}' | T_{m,k}] \\
+%         \Pr[s' \mid  s, a] &= \Pr[C_l' \mid  C_l, C_q, a] \\
+%         &\times \Pr[E_r' \mid  E_r] \\
+%         &\times \Pr[C_q' \mid  C_q] \\
+%         &\times \Pr[T_q' \mid  T_q] \\
+%         &\times \Pr[I_l' \mid  C_l, C_q, C_m, a] \\
+%         &\times \Pr[I_o' \mid  C_c, C_q, Q, a] \\
+%         &\times \prod_{k=1}^{K} \Pr[C_{m,k}' \mid  C_{m,k}, T_{m,k}, a] \\
+%         &\times \prod_{k=1}^{K} \Pr[T_{m,k}' \mid  T_{m,k}] \\
 %         &\times \Pr[V'] \\
 %         &\times \Pr[C']
 %     \end{split}
@@ -564,7 +652,7 @@ To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is
 
 % \textbf{Environment State Changes:} MEC server states evolve based on system load and external factors:
 % \begin{equation}
-% e'_{mec\_units} \sim P_{MEC}(e_{mec\_units}|e_{mec\_units}, \text{system\_load})
+% e'_{mec\_units} \sim P_{MEC}(e_{mec\_units}\mid e_{mec\_units}, \text{system\_load})
 % \end{equation}
 
 % The MEC state transitions follow a semi-Markov process reflecting the dynamic nature of edge computing infrastructure.
@@ -580,99 +668,72 @@ To model temporal correlations in cloud workload, the cloud state $(c_c,t_c)$ is
 
 \subsection{Reward Function}
 
-The reward function $\mathcal{R}: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}$ provides immediate feedback to guide the UAV agent's learning process by quantifying the desirability of taking action $a$ in state $s$. The ATLAS framework designs a multi-objective reward function that balances energy efficiency, processing latency, and task completion success.
+The reward function $\mathcal{R}: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}$ quantifies the total computation successfully completed at each decision epoch. No reward is assigned at the moment of action selection; reward is received only when previously scheduled tasks finish processing at either the MEC server or the cloud. This deferred-reward structure requires the agent to implicitly associate its current scheduling decisions with future task completions.
 
-The reward function is formulated as a weighted combination of multiple cost and benefit components:
-
+A task is identified as completed when its remaining processing time reaches unity in the intermediate queue state. The reward is the total computation units recovered from all completed tasks across both processing locations, scaled by a constant $\rho$:
 \begin{equation}
 \begin{aligned}
 &\mathcal{R}(s, a) \\
-& = -\alpha \cdot C_{energy}(s, a) \\
-& - \beta \cdot C_{latency}(s, a) \\
-& - \gamma \cdot C_{failure}(s, a) \\
-& + \delta \cdot B_{completion}(s, a)
+&= \rho \left(
+  \underbrace{\sum_{k=1}^{K} \tilde{c}_{m,k} \cdot \mathbf{1}[\tilde{t}_{m,k} = 1]}_{R_{\mathrm{MEC}}}
+  + \underbrace{\sum_{k=1}^{K} \tilde{c}_{c,k} \cdot \mathbf{1}[\tilde{t}_{c,k} = 1]}_{R_{\mathrm{cloud}}}
+\right),
 \end{aligned}
 \end{equation}
-
-where $\alpha$, $\beta$, $\gamma$, and $\delta$ are positive weighting coefficients that control the relative importance of each objective component.
-
-\textbf{Energy Cost ($C_{energy}$):} This component penalizes energy consumption for different actions:
+where $(\tilde{c}_{m,k}, \tilde{t}_{m,k})$ is the intermediate MEC queue state defined in the observable state transitions in~\eqref{eq:tilde}. The cloud intermediate state $(\tilde{c}_{c,k}, \tilde{t}_{c,k})$ follows the same enqueue structure with action $a{=}1$ and feasibility indicator $\phi_o$ in place of $a{=}0$ and $\phi_l$:
 \begin{equation}
-C_{energy}(s, a) = \begin{cases}
-E_{local} \cdot q_{units} & \text{if } a = 0 \\
-E_{transmission} \cdot q_{units} & \text{if } a = 1 \\
-0 & \text{if } a = 2
-\end{cases}
+\begin{aligned}
+\tilde{c}_{c,k} &= c_{c,k} + c_q\cdot\mathbf{1}[a{=}1]\cdot\phi_o\cdot\mathbf{1}[k{=}\kappa_c], \\
+\tilde{t}_{c,k} &= t_{c,k} + t_q\cdot\mathbf{1}[a{=}1]\cdot\phi_o\cdot\mathbf{1}[k{=}\kappa_c],
+\end{aligned}
 \end{equation}
+where $\kappa_c = \min\{k: c_{c,k} = 0\}$ denotes the first available cloud queue slot.
 
-where $E_{local}$ and $E_{transmission}$ represent normalized energy costs for local processing and task transmission, respectively.
-
-\textbf{Latency Cost ($C_{latency}$):} This component accounts for processing and communication delays:
-\begin{equation}
-C_{latency}(s, a) = \begin{cases}
-T_{local}(q_{units}, c_{avail}) & \text{if } a = 0 \\
-T_{offload}(q_{units}, e_{mec\_times}) + T_{transmission} & \text{if } a = 1 \\
-0 & \text{if } a = 2
-\end{cases}
-\end{equation}
-
-where $T_{local}$ and $T_{offload}$ are functions computing processing times based on task requirements and available resources.
-
-\textbf{Failure Penalty ($C_{failure}$):} This component penalizes unsuccessful task processing:
-\begin{equation}
-C_{failure}(s, a) = \begin{cases}
-P_{fail\_local} \cdot \rho_{failure} & \text{if } a = 0 \\
-P_{fail\_offload} \cdot \rho_{failure} & \text{if } a = 1 \\
-\rho_{discard} & \text{if } a = 2
-\end{cases}
-\end{equation}
-
-where $P_{fail\_local}$ and $P_{fail\_offload}$ are failure probabilities, and $\rho_{failure}$ and $\rho_{discard}$ are penalty magnitudes.
-
-\textbf{Completion Benefit ($B_{completion}$):} This component provides positive rewards for successful task completion:
-\begin{equation}
-B_{completion}(s, a) = \begin{cases}
-(1 - P_{fail\_local}) \cdot \eta_{success} & \text{if } a = 0 \\
-(1 - P_{fail\_offload}) \cdot \eta_{success} & \text{if } a = 1 \\
-0 & \text{if } a = 2
-\end{cases}
-\end{equation}
-
-where $\eta_{success}$ represents the positive reward magnitude for successful task completion.
-
-This multi-objective reward design enables the ATLAS system to learn policies that optimize the trade-off between energy consumption, processing latency, and task success rates across diverse operational conditions.
+The MEC term $R_{\mathrm{MEC}}$ captures completions at the agent-controlled server, while the cloud term $R_{\mathrm{cloud}}$ captures completions at the shared cloud infrastructure. Both terms contribute identically to the reward, reflecting that the optimization objective is to maximize total computation throughput regardless of processing location. The scaling factor $\rho$ controls the reward magnitude relative to the policy gradient updates and is treated as a hyperparameter.
 
 \subsection{A3C Architecture}
 
-The A3C implementation employs both feedforward and recurrent neural network configurations to handle the sequential nature of the task offloading decisions.
+The ATLAS framework compares two training paradigms: A3C with a shared global model and individual training with independent models. Both paradigms use identical network architectures and $T$-step rollout procedures.
 
 \subsubsection{Network Architecture}
 
-The actor-critic architecture consists of:
-\begin{itemize}
-\item \textbf{Actor Network}: Outputs action probabilities using a softmax policy
-\item \textbf{Critic Network}: Estimates state values for advantage calculation
-\item \textbf{Hidden Layers}: 128 neurons with ReLU activation functions
-\item \textbf{Recurrent Component}: GRU layers for sequence modeling (when enabled)
-\end{itemize}
+The agent employs a recurrent actor-critic network. At each decision epoch, the network receives the current observation $\mathbf{o} \in \mathbb{R}^{d}$ and the hidden state $\mathbf{h}$ carried from the previous epoch. Features are first extracted through an embedding layer with layer normalization:
+\begin{equation}
+\mathbf{z} = \mathrm{ReLU}\bigl(\mathrm{LayerNorm}(\mathbf{W}_{\mathrm{emb}}\,\mathbf{o} + \mathbf{b}_{\mathrm{emb}})\bigr).
+\end{equation}
+The embedded vector and the previous hidden state are fed into a single-layer GRU, whose output is normalized:
+\begin{equation}
+\mathbf{h}' = \mathrm{GRU}(\mathbf{z},\, \mathbf{h}), \quad
+\tilde{\mathbf{h}}' = \mathrm{LayerNorm}(\mathbf{h}').
+\end{equation}
+Two linear heads produce the action distribution and state-value estimate from $\tilde{\mathbf{h}}'$:
+\begin{equation}
+\begin{aligned}
+\pi(\cdot \mid o;\theta) &= \mathrm{Categorical}(\mathbf{W}_\pi\,\tilde{\mathbf{h}}' + \mathbf{b}_\pi), \\
+V(o;\theta) &= \mathbf{w}_v^\top \tilde{\mathbf{h}}' + b_v.
+\end{aligned}
+\end{equation}
 
-For the recurrent variant (RecurrentActorCritic), the network processes sequences of observations through GRU layers before the final actor and critic heads, enabling the model to maintain memory of past decisions and environmental states.
+All linear layers are initialized with orthogonal weights and the hidden state $\mathbf{h}$ is reset to $\mathbf{0}$ at each episode boundary. The hidden dimension is $H = 128$ throughout. A feedforward variant that replaces the GRU and layer normalization with a two-layer ReLU network is additionally evaluated in the ablation study.
 
 \subsubsection{Training Strategies}
 
-We evaluate two distinct training paradigms:
+\textbf{A3C Global Training:} $W$ workers run in parallel, each assigned a distinct agent velocity from a uniformly spaced grid. All workers share a single global model stored in shared memory. At each update, a worker (i) copies the current global parameters, (ii) collects a $T$-step rollout, (iii) computes gradients on its local copy, and (iv) transfers those gradients to the global model for a single SharedAdam optimizer step. The worker then re-synchronizes with the updated global parameters.
 
-\textbf{A3C Global Training:} In this centralized approach, all workers share updates to a single global model. Each worker interacts with its assigned environment and computes gradients based on the advantage actor-critic loss:
+\textbf{Individual Training:} Each of the $W$ workers maintains its own independent model updated with a standard Adam optimizer. No parameters are shared across workers. An episode-level barrier synchronizes all workers at episode boundaries, ensuring that the shared cloud resource state evolves identically under both paradigms for a controlled comparison.
 
+Both paradigms minimize the following combined loss over a $T$-step rollout:
 \begin{equation}
-L = L_{policy} + \beta \cdot L_{value} - \alpha \cdot H(\pi)
+\begin{aligned}
+\mathcal{L} &= \underbrace{-\frac{1}{T}\sum_{t=0}^{T-1}
+  \hat{A}_t \log \pi(a_t \mid o_t;\theta)}_{\mathcal{L}_{\mathrm{policy}}}
+  + \;\beta_v \underbrace{\frac{1}{T}\sum_{t=0}^{T-1}
+  \bigl(V(o_t;\theta) - G_t\bigr)^2}_{\mathcal{L}_{\mathrm{value}}} \\
+  &\quad - \;\beta_H \underbrace{\frac{1}{T}\sum_{t=0}^{T-1}
+  H\bigl(\pi(\cdot \mid o_t;\theta)\bigr)}_{\text{entropy bonus}},
+\end{aligned}
 \end{equation}
-
-where $L_{policy}$ is the policy loss, $L_{value}$ is the value function loss, and $H(\pi)$ is the policy entropy term for exploration.
-
-The global model aggregates updates from all workers asynchronously, promoting knowledge sharing across different environmental conditions and worker experiences.
-
-\textbf{Individual Worker Training:} In this decentralized approach, each worker develops its own specialized policy independently. Workers train separate neural networks without sharing parameters, allowing for environment-specific adaptation and specialized behavior development.
+where $G_t = \sum_{\tau=t}^{T-1}\gamma^{\tau-t}r_\tau + \gamma^{T-t}V(o_T;\theta)$ is the bootstrapped $T$-step return (setting $V(o_T;\theta)=0$ when the episode terminates within the rollout), and $\hat{A}_t = G_t - V(o_t;\theta)$ is the advantage estimate, normalized to zero mean and unit variance over the rollout. Gradients are clipped to a maximum $\ell_2$-norm of $g_{\max}$.
 
 \subsection{Environment Configuration}
 
@@ -704,22 +765,22 @@ Our evaluation framework includes the following key metrics:
     \For{each worker $w \in \{1, \ldots, W\}$ \textbf{in parallel}}
         \State $\theta_w \gets \theta$ \Comment{Copy global parameters}
         \For{episode $e = 1$ to $E_{\max}$}
-            \State Initialize state $s_0$ and RNN hidden state $h_0 \gets \mathbf{0}$
+            \State Initialize observation $o_0$ and RNN hidden state $h_0 \gets \mathbf{0}$
             \While{episode not terminated}
                 \State \textbf{// Collect T-step rollout}
                 \For{$t = 0$ to $T-1$}
-                    \State Compute $\pi(\cdot | s, h_t; \theta_w)$ and $V(s, h_t; \theta_w)$
-                    \State Sample $a \sim \pi(\cdot | s, h_t; \theta_w)$
-                    \State Execute $a$, observe $r_t$ and $s'$
+                    \State Compute $\pi(\cdot \mid  o_t, h_t; \theta_w)$ and $V(o_t, h_t; \theta_w)$
+                    \State Sample $a \sim \pi(\cdot \mid  o_t, h_t; \theta_w)$
+                    \State Execute $a$, observe $r_t$ and $o'$
                     \State Update $h'$ via GRU; if done, $h' \gets \mathbf{0}$
                 \EndFor
                 \State \textbf{// Compute returns and advantages}
-                \State Bootstrap $R \gets V(s, h_T; \theta_w)$ if not done, else $R \gets 0$
+                \State Bootstrap $R \gets V(o_T, h_T; \theta_w)$ if not done, else $R \gets 0$
                 \For{$t = T-1$ down to $0$}
-                    \State $R \gets r_t + \gamma R$; $A_t \gets R - V(s, h_t; \theta_w)$
+                    \State $R \gets r_t + \gamma R$; $A_t \gets R - V(o_t, h_t; \theta_w)$
                 \EndFor
                 \State \textbf{// Compute loss}
-                \State $\mathcal{L} \gets -\sum_t \log \pi(a | s, h_t; \theta_w) A_t + \beta_v \sum_t (R_t - V_t)^2 - \beta_h \mathcal{H}(\pi)$
+                \State $\mathcal{L} \gets -\sum_t \log \pi(a \mid  o_t, h_t; \theta_w) A_t + \beta_v \sum_t (R_t - V_t)^2 - \beta_h \mathcal{H}(\pi)$
                 \State \textbf{// Asynchronous update}
                 \State Compute gradients $\nabla_{\theta_w} \mathcal{L}$ and clip
                 \State Copy gradients to global: $\nabla_{\theta} \gets \nabla_{\theta_w}$
