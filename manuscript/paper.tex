@@ -691,13 +691,14 @@ where $\kappa_c = \min\{k: c_{c,k} = 0\}$ denotes the first available cloud queu
 
 The MEC term $R_{\mathrm{MEC}}$ captures completions at the agent-controlled server, while the cloud term $R_{\mathrm{cloud}}$ captures completions at the shared cloud infrastructure. Both terms contribute identically to the reward, reflecting that the optimization objective is to maximize total computation throughput regardless of processing location. The scaling factor $\rho$ controls the reward magnitude relative to the policy gradient updates and is treated as a hyperparameter.
 
+\section{Deep Reinforcement Learning Algorithm with A3C Architecture}
+
+The ATLAS framework addresses the UAV task offloading problem as a POMDP in which agents cannot directly observe channel quality or cloud resource availability. To handle this partial observability, we employ a recurrent actor-critic network with GRU-based hidden state propagation. 
+% We compare two training paradigms—A3C with asynchronous parameter sharing across multiple workers, and individual training where each worker develops an independent policy—to evaluate the benefit of collective exploration and knowledge transfer in dynamic multi-agent environments.
+
 \subsection{A3C Architecture}
 
-The ATLAS framework compares two training paradigms: A3C with a shared global model and individual training with independent models. Both paradigms use identical network architectures and $T$-step rollout procedures.
-
-\subsubsection{Network Architecture}
-
-The agent employs a recurrent actor-critic network. At each decision epoch, the network receives the current observation $\mathbf{o} \in \mathbb{R}^{d}$ and the hidden state $\mathbf{h}$ carried from the previous epoch. Features are first extracted through an embedding layer with layer normalization:
+The agent employs a recurrent actor-critic network. At each decision epoch, the network receives the current observation $\mathbf{o} \in \mathbb{R}^{d}$ and the hidden state $\mathbf{h} \in \mathbb{R}^{H}$ carried from the previous epoch. Features are first extracted through an embedding layer with layer normalization:
 \begin{equation}
 \mathbf{z} = \mathrm{ReLU}\bigl(\mathrm{LayerNorm}(\mathbf{W}_{\mathrm{emb}}\,\mathbf{o} + \mathbf{b}_{\mathrm{emb}})\bigr).
 \end{equation}
@@ -716,7 +717,7 @@ V(o;\theta) &= \mathbf{w}_v^\top \tilde{\mathbf{h}}' + b_v.
 
 All linear layers are initialized with orthogonal weights and the hidden state $\mathbf{h}$ is reset to $\mathbf{0}$ at each episode boundary. The hidden dimension is $H = 128$ throughout. A feedforward variant that replaces the GRU and layer normalization with a two-layer ReLU network is additionally evaluated in the ablation study.
 
-\subsubsection{Training Strategies}
+\subsection{Learning Algorithm}
 
 \textbf{A3C Global Training:} $W$ workers run in parallel, each assigned a distinct agent velocity from a uniformly spaced grid. All workers share a single global model stored in shared memory. At each update, a worker (i) copies the current global parameters, (ii) collects a $T$-step rollout, (iii) computes gradients on its local copy, and (iv) transfers those gradients to the global model for a single SharedAdam optimizer step. The worker then re-synchronizes with the updated global parameters.
 
