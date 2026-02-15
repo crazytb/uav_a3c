@@ -279,10 +279,7 @@ where where 0, 1, and 2 stand for each defined action, respectively. A specific 
 \subsection{State Transition Function}
 
 The state transition function $\mathcal{P}: \mathcal{S} \times \mathcal{A} \times \mathcal{S} \rightarrow [0,1]$ characterizes the probabilistic evolution of the environment state in response to the agent’s actions.
-Following the state definition in Section~\ref{subsec:problem}, the environment state is given by
-\begin{equation}
-    s = (o, z)
-\end{equation}
+Following the state definition in Section~\ref{subsec:problem}, the environment state is given by $s = (o, z)$
 where $o \in \mathcal{O}$ denotes the observation state available to UAV agents, and $z \in \mathcal{Z}$ represents hidden exogenous environmental states. We also define $s'$ notation to represent the state of the next time epoch, e.g., $s' = (o', z')$.
 % where $\mathbf{c}_m, \mathbf{t}_m, \in \mathbb{R}^K$ and $\mathbf{c}_c, \mathbf{t}_c \in \mathbb{R}^K$ represent local-side MEC and cloud server-side queue state vectors, respectively. 
 % Each component of the state vector is an element of a predefined domain in~\ref{subsec:state},
